@@ -10,6 +10,7 @@ export interface RuntimeOptions {
   stderr?: Writer
   stdin?: NodeJS.ReadableStream
   now?: () => string
+  env?: NodeJS.ProcessEnv
 }
 
 export interface TerminalInfo {
@@ -26,4 +27,7 @@ export interface CommandContext {
   stderr: Writer
   terminal: TerminalInfo
   now: () => string
+  env: NodeJS.ProcessEnv
 }
+
+export type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }

@@ -1,43 +1,45 @@
 import { Command } from 'commander'
 import { z } from 'zod'
 
-import { getExitCode } from '../core/exit.js'
 import { normalizeError } from '../core/errors.js'
+import { getExitCode } from '../core/exit.js'
+import { readStacksConfig } from '../core/stacks-config.js'
 import { renderJsonError, renderJsonSuccess } from '../output/agent.js'
-import { renderFriendlyError, renderRunResult } from '../output/human.js'
-import { runAgentTask } from '../services/agent-service.js'
+import { renderFriendlyError, renderWalletResult } from '../output/human.js'
+import { getWalletInfo } from '../services/wallet-service.js'
 import type { ResolvedRuntime } from '../types/context.js'
 import { createCommandContext } from '../utils/terminal.js'
 
-const runCommandSchema = z.object({
-  task: z.string().trim().min(1, 'Task is required.'),
+const walletCommandSchema = z.object({
   json: z.boolean().optional(),
   plain: z.boolean().optional(),
-  nonInteractive: z.boolean().optional(),
 })
 
 function getRawFlags(options: Record<string, unknown>) {
   return {
     json: options.json === true,
     plain: options.plain === true,
-    nonInteractive: options.nonInteractive === true,
   }
 }
 
-async function handleRun(options: Record<string, unknown>, runtime: ResolvedRuntime): Promise<number> {
+async function handleWallet(
+  options: Record<string, unknown>,
+  runtime: ResolvedRuntime,
+): Promise<number> {
   const context = createCommandContext(getRawFlags(options), runtime)
 
   try {
-    const parsed = runCommandSchema.parse(options)
+    walletCommandSchema.parse(options)
+    const config = readStacksConfig(context.env)
     const timestamp = context.now()
-    const result = runAgentTask(parsed.task, timestamp)
+    const result = getWalletInfo(config, timestamp)
 
     if (context.mode === 'json') {
       renderJsonSuccess(context, result, timestamp)
       return 0
     }
 
-    await renderRunResult(context, result)
+    await renderWalletResult(context, result)
     return 0
   } catch (error) {
     const normalized = normalizeError(error)
@@ -52,15 +54,13 @@ async function handleRun(options: Record<string, unknown>, runtime: ResolvedRunt
   }
 }
 
-export function registerRunCommand(program: Command, runtime: ResolvedRuntime) {
+export function registerWalletCommand(program: Command, runtime: ResolvedRuntime) {
   program
-    .command('run')
-    .description('Run a fake agent task')
-    .requiredOption('--task <string>', 'Task description')
+    .command('wallet')
+    .description('Show the Stacks wallet derived from STACKS_PRIVATE_KEY')
     .option('--json', 'Emit structured JSON only')
     .option('--plain', 'Emit minimal readable text')
-    .option('--non-interactive', 'Disable prompts for automation')
     .action(async (options: Record<string, unknown>) => {
-      runtime.exitCode = await handleRun(options, runtime)
+      runtime.exitCode = await handleWallet(options, runtime)
     })
 }

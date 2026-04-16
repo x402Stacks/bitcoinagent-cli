@@ -2,16 +2,15 @@ import { Command, CommanderError } from 'commander'
 
 import { registerRunCommand } from './commands/run.js'
 import { registerStatusCommand } from './commands/status.js'
+import { registerWalletCommand } from './commands/wallet.js'
 import { registerCompletionSupport } from './completions/tab.js'
 import { ValidationError } from './core/errors.js'
 import { getExitCode } from './core/exit.js'
 import { normalizeError } from './core/errors.js'
 import { renderJsonError } from './output/agent.js'
 import { renderFriendlyError } from './output/human.js'
-import type { RuntimeOptions, Writer } from './types/context.js'
+import type { ResolvedRuntime, RuntimeOptions, Writer } from './types/context.js'
 import { createCommandContext } from './utils/terminal.js'
-
-type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }
 
 function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
   return {
@@ -19,6 +18,7 @@ function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
     stderr: options.stderr ?? process.stderr,
     stdin: options.stdin ?? process.stdin,
     now: options.now ?? (() => new Date().toISOString()),
+    env: options.env ?? process.env,
     exitCode: 0,
   }
 }
@@ -44,6 +44,7 @@ function createProgram(runtime: ResolvedRuntime) {
 
   registerRunCommand(program, runtime)
   registerStatusCommand(program, runtime)
+  registerWalletCommand(program, runtime)
   registerCompletionSupport(program)
 
   return program
