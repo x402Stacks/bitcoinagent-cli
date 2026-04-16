@@ -6,7 +6,7 @@ import { normalizeError } from '../core/errors.js'
 import { renderJsonError, renderJsonSuccess } from '../output/agent.js'
 import { renderFriendlyError, renderStatusResult } from '../output/human.js'
 import { getAgentTaskStatus } from '../services/agent-service.js'
-import type { RuntimeOptions } from '../types/context.js'
+import type { ResolvedRuntime } from '../types/context.js'
 import { createCommandContext } from '../utils/terminal.js'
 
 const statusCommandSchema = z.object({
@@ -14,8 +14,6 @@ const statusCommandSchema = z.object({
   json: z.boolean().optional(),
   plain: z.boolean().optional(),
 })
-
-type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }
 
 function getRawFlags(options: Record<string, unknown>) {
   return {

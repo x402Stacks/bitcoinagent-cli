@@ -7,15 +7,13 @@ import { readStacksConfig } from '../core/stacks-config.js'
 import { renderJsonError, renderJsonSuccess } from '../output/agent.js'
 import { renderFriendlyError, renderWalletResult } from '../output/human.js'
 import { getWalletInfo } from '../services/wallet-service.js'
-import type { RuntimeOptions } from '../types/context.js'
+import type { ResolvedRuntime } from '../types/context.js'
 import { createCommandContext } from '../utils/terminal.js'
 
 const walletCommandSchema = z.object({
   json: z.boolean().optional(),
   plain: z.boolean().optional(),
 })
-
-type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }
 
 function getRawFlags(options: Record<string, unknown>) {
   return {

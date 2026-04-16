@@ -9,10 +9,8 @@ import { getExitCode } from './core/exit.js'
 import { normalizeError } from './core/errors.js'
 import { renderJsonError } from './output/agent.js'
 import { renderFriendlyError } from './output/human.js'
-import type { RuntimeOptions, Writer } from './types/context.js'
+import type { ResolvedRuntime, RuntimeOptions, Writer } from './types/context.js'
 import { createCommandContext } from './utils/terminal.js'
-
-type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }
 
 function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
   return {

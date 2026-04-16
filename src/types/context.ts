@@ -29,3 +29,5 @@ export interface CommandContext {
   now: () => string
   env: NodeJS.ProcessEnv
 }
+
+export type ResolvedRuntime = Required<RuntimeOptions> & { exitCode: number }
