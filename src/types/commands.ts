@@ -29,3 +29,14 @@ export type StatusCommandResult = {
   progress: number
   timestamp: string
 }
+
+export type WalletCommandOptions = {
+  json?: boolean
+  plain?: boolean
+}
+
+export type WalletCommandResult = {
+  address: string
+  network: 'mainnet' | 'testnet'
+  timestamp: string
+}

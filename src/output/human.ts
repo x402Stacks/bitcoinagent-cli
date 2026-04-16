@@ -3,7 +3,11 @@ import { log, note, spinner } from '@clack/prompts'
 import type { CliError } from '../core/errors.js'
 import { createLogger } from '../core/logger.js'
 import type { CommandContext } from '../types/context.js'
-import type { RunCommandResult, StatusCommandResult } from '../types/commands.js'
+import type {
+  RunCommandResult,
+  StatusCommandResult,
+  WalletCommandResult,
+} from '../types/commands.js'
 import { toNodeWritable } from '../utils/terminal.js'
 
 const HUMAN_BANNER = String.raw`
@@ -103,6 +107,32 @@ export async function renderStatusResult(context: CommandContext, result: Status
       `Timestamp: ${result.timestamp}`,
     ].join('\n'),
     'Status Summary',
+    { output },
+  )
+}
+
+export async function renderWalletResult(context: CommandContext, result: WalletCommandResult) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `address: ${result.address}`,
+      `network: ${result.network}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+
+  renderBanner(context)
+
+  const output = toNodeWritable(context.stdout)
+
+  log.success(`Wallet ready on ${result.network}`, { output })
+  note(
+    [
+      `Address: ${result.address}`,
+      `Network: ${result.network}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'Wallet',
     { output },
   )
 }

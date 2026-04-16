@@ -36,6 +36,7 @@ export function createCommandContext(
     stderr: runtime.stderr,
     terminal: getTerminalInfo(runtime.stdin, runtime.stdout, runtime.stderr),
     now: runtime.now,
+    env: runtime.env,
   }
 }
 
