@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+docs/superpowers/
+*.tgz
+.env
+.env.*
+!.env.example
