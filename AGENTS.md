@@ -33,6 +33,50 @@ src/
 ├── cli.ts                # program creation, runtime wiring, help/JSON-help handling
 ├── commands/
 │   ├── run.ts            # run command (registration + validation + execution)
+│   ├── status.ts          # status command
+│   ├── wallet.ts          # wallet command (Stacks key inspection)
+│   ├── services.ts        # services list + endpoints commands (discovery)
+│   ├── tiktok.ts          # tiktok profile + videos commands (free)
+│   ├── twitter.ts          # twitter profile/tweets/highlights/followings commands (paid, x402)
+│   └── health.ts           # health command (raw /health endpoint)
+├── completions/
+│   └── tab.ts              # @bomb.sh/tab shell completion integration
+├── core/
+│   ├── errors.ts           # CliError hierarchy (ValidationError, NotFoundError, InternalError, UpstreamError, PaymentRequiredError)
+│   ├── exit.ts             # exit code mapping by error code
+│   ├── logger.ts           # logger suppressed in JSON mode
+│   ├── env.ts              # environment helpers (CI, NO_COLOR)
+│   ├── api-config.ts       # API_BASE_URL / API_TIMEOUT_MS config loader
+│   └── stacks-config.ts    # STACKS_PRIVATE_KEY / STACKS_NETWORK config loader
+├── output/
+│   ├── agent.ts            # structured JSON response helpers (createSuccessResponse, createErrorResponse)
+│   └── human.ts            # human/plain renderers + ASCII banner (human-only)
+├── services/
+│   ├── agent-service.ts    # deterministic fake business logic
+│   ├── wallet-service.ts   # Stacks wallet info
+│   ├── stacks-client.ts   # x402 payment client factory
+│   ├── api-client.ts       # free HTTP client (Node fetch, envelope unwrap)
+│   ├── paid-api-client.ts  # paid HTTP client (x402 axios, envelope unwrap)
+│   ├── api-envelope.ts     # envelope unwrap + error code mapper
+│   ├── transport.ts        # transport factory (getFreeTransport, getPaidTransport)
+│   ├── services-service.ts # discovery API calls
+│   ├── tiktok-service.ts   # TikTok API calls
+│   ├── twitter-service.ts  # Twitter API calls
+│   └── health-service.ts   # health check API call
+├── types/
+│   ├── output.ts           # OutputMode, CliResponse<T>
+│   ├── context.ts          # Writer, RuntimeOptions, TerminalInfo, CommandContext
+│   └── commands.ts         # all command input/result types
+└── utils/
+    ├── json.ts             # safeJsonStringify, writeJson
+    ├── mode.ts             # resolveOutputMode (json > plain > human)
+    └── terminal.ts         # getTerminalInfo, createCommandContext, toNodeWritable
+```
+src/
+├── index.ts              # entrypoint (#!/usr/bin/env node)
+├── cli.ts                # program creation, runtime wiring, help/JSON-help handling
+├── commands/
+│   ├── run.ts            # run command (registration + validation + execution)
 │   └── status.ts        # status command
 ├── completions/
 │   └── tab.ts            # @bomb.sh/tab shell completion integration
@@ -74,9 +118,53 @@ src/
 | @clack/prompts | ^1.2.0 | Human UX (spinner, log, note) |
 | @bomb.sh/tab | ^0.0.14 | Shell completions |
 | zod | ^4.3.6 | Input validation |
+| x402-stacks | ^1.1.0 | x402 payment client (Stacks) |
+| axios | ^1.15.0 | HTTP client (used by paid-api-client) |
 | tsx | ^4.21.0 | Dev runner |
 | vitest | ^4.1.4 | Tests |
 | typescript | ^6.0.2 | Compiler |
+
+## Consuming the API
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_BASE_URL` | `http://localhost:3000` | Base URL for the social-platform API |
+| `API_TIMEOUT_MS` | `60000` | Request timeout in milliseconds (positive integer) |
+| `STACKS_PRIVATE_KEY` | — | Required for paid (Twitter/x402) commands |
+| `STACKS_NETWORK` | `testnet` | Stacks network (`mainnet` or `testnet`) |
+
+### Command Tree
+
+```
+agent-cli
+├── run                  # Agent task runner (fake)
+├── status               # Task status (fake)
+├── wallet               # Show Stacks wallet address
+├── services
+│   ├── list             # List API services (free)
+│   └── endpoints <name> # Show endpoints for a service (free)
+├── tiktok
+│   ├── profile          # Fetch TikTok profile (free)
+│   └── videos           # List TikTok videos (free)
+├── twitter
+│   ├── profile          # Fetch Twitter profile (paid)
+│   ├── tweets           # List tweets (paid)
+│   ├── highlights       # List highlights (paid)
+│   └── followings       # List followings (paid)
+└── health               # API health check (free)
+```
+
+### Error Codes & Exit Codes
+
+| Error Code | Exit Code | When |
+|------------|-----------|------|
+| `VALIDATION_ERROR` | 1 | Invalid input, missing flags, Zod parse failure |
+| `INTERNAL_ERROR` | 1 | Unexpected bugs |
+| `NOT_FOUND` | 2 | Resource not found (404) |
+| `UPSTREAM_ERROR` | 3 | Upstream provider unavailable (502, network errors) |
+| `PAYMENT_REQUIRED` | 4 | Payment required and settlement failed (402) |
 
 ## Adding a New Command
 
