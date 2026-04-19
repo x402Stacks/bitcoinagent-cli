@@ -8,6 +8,8 @@ import type {
   ServiceEndpointsResult,
   ServicesListResult,
   StatusCommandResult,
+  TiktokProfileResult,
+  TiktokVideosResult,
   WalletCommandResult,
 } from '../types/commands.js'
 import { toNodeWritable } from '../utils/terminal.js'
@@ -193,6 +195,55 @@ export async function renderServiceEndpointsResult(
       : ''
     note(`${ep.method} ${ep.path}\n${ep.description}${payment}`, ep.path, { output })
   }
+}
+
+export async function renderTiktokProfileResult(
+  context: CommandContext,
+  result: TiktokProfileResult,
+) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `username: ${result.Username}`,
+      `displayName: ${result.DisplayName}`,
+      `followers: ${result.Followers}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`TikTok profile ${result.Username}`, { output })
+  note(
+    [
+      `Display name: ${result.DisplayName}`,
+      `Followers: ${result.Followers}`,
+      `Provider: ${result.provider}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'TikTok profile',
+    { output },
+  )
+}
+
+export async function renderTiktokVideosResult(
+  context: CommandContext,
+  result: TiktokVideosResult,
+) {
+  if (context.mode === 'plain') {
+    const lines = [
+      `username: ${result.username}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ]
+    for (const v of result.videos) lines.push(`video: ${v.ID} views=${v.Views} title="${v.Title}"`)
+    renderPlainBlock(context, lines)
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`${result.videos.length} videos for ${result.username}`, { output })
+  for (const v of result.videos) note(`${v.Title}\nViews: ${v.Views}`, v.ID, { output })
 }
 
 export function renderFriendlyError(context: CommandContext, error: CliError) {
