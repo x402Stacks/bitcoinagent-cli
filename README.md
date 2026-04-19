@@ -24,6 +24,12 @@ pnpm install
 ```bash
 pnpm exec tsx src/index.ts run --task "draft incident report"
 pnpm exec tsx src/index.ts status --id task_draft_incident_report
+pnpm exec tsx src/index.ts wallet
+pnpm exec tsx src/index.ts services list
+pnpm exec tsx src/index.ts services endpoints tiktok
+pnpm exec tsx src/index.ts tiktok profile --username creator_1
+pnpm exec tsx src/index.ts tiktok videos --username creator_1
+pnpm exec tsx src/index.ts health
 ```
 
 Human mode is the default. It uses Clack spinners plus readable summaries.
@@ -33,6 +39,8 @@ Human mode is the default. It uses Clack spinners plus readable summaries.
 ```bash
 pnpm exec tsx src/index.ts run --task "draft incident report" --plain
 pnpm exec tsx src/index.ts status --id task_draft_incident_report --plain
+pnpm exec tsx src/index.ts services list --plain
+pnpm exec tsx src/index.ts tiktok profile --username creator_1 --plain
 ```
 
 Plain mode is minimal readable text with no spinner and no extra decoration.
@@ -42,6 +50,11 @@ Plain mode is minimal readable text with no spinner and no extra decoration.
 ```bash
 pnpm exec tsx src/index.ts run --task "draft incident report" --json
 pnpm exec tsx src/index.ts status --id task_draft_incident_report --json
+pnpm exec tsx src/index.ts services list --json
+pnpm exec tsx src/index.ts services endpoints twitter --json
+pnpm exec tsx src/index.ts tiktok profile --username creator_1 --json
+pnpm exec tsx src/index.ts tiktok videos --username creator_1 --json
+pnpm exec tsx src/index.ts health --json
 ```
 
 JSON mode is automation-safe:
@@ -97,6 +110,28 @@ If the package is installed globally or linked into your shell `PATH`, this also
 ```bash
 agent-cli complete zsh > ~/.agent-cli-completion.zsh
 ```
+
+## Paid Endpoints (Twitter / x402)
+
+Twitter commands require a Stacks private key for on-chain payment settlement:
+
+```bash
+STACKS_PRIVATE_KEY=<key> pnpm exec tsx src/index.ts twitter profile --username MrBeast --json
+STACKS_PRIVATE_KEY=<key> pnpm exec tsx src/index.ts twitter tweets --user-id 2455740283 --json
+STACKS_PRIVATE_KEY=<key> pnpm exec tsx src/index.ts twitter highlights --user-id 2455740283 --json
+STACKS_PRIVATE_KEY=<key> pnpm exec tsx src/index.ts twitter followings --user-id 2455740283 --json
+```
+
+Set `STACKS_NETWORK=mainnet` (default: `testnet`) and `API_BASE_URL` (default: `http://localhost:3000`) as needed.
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `API_BASE_URL` | `http://localhost:3000` | Base URL for the API |
+| `API_TIMEOUT_MS` | `60000` | Request timeout (ms) |
+| `STACKS_PRIVATE_KEY` | — | Required for paid commands |
+| `STACKS_NETWORK` | `testnet` | `mainnet` or `testnet` |
 
 ## Why This Structure Works Well For Agent-First CLIs
 
