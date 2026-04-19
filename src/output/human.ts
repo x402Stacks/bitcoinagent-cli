@@ -10,6 +10,10 @@ import type {
   StatusCommandResult,
   TiktokProfileResult,
   TiktokVideosResult,
+  TwitterFollowingsResult,
+  TwitterHighlightsResult,
+  TwitterProfileResult,
+  TwitterTweetsResult,
   WalletCommandResult,
 } from '../types/commands.js'
 import { toNodeWritable } from '../utils/terminal.js'
@@ -244,6 +248,104 @@ export async function renderTiktokVideosResult(
   const output = toNodeWritable(context.stdout)
   log.success(`${result.videos.length} videos for ${result.username}`, { output })
   for (const v of result.videos) note(`${v.Title}\nViews: ${v.Views}`, v.ID, { output })
+}
+
+export async function renderTwitterProfileResult(
+  context: CommandContext,
+  result: TwitterProfileResult,
+) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `restId: ${result.RestID}`,
+      `username: ${result.Username}`,
+      `displayName: ${result.DisplayName}`,
+      `followers: ${result.Followers}`,
+      `following: ${result.Following}`,
+      `tweets: ${result.TweetsCount}`,
+      `verified: ${result.IsBlueVerified}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`Twitter profile @${result.Username}`, { output })
+  note(
+    [
+      `REST ID: ${result.RestID}`,
+      `Display name: ${result.DisplayName}`,
+      `Followers: ${result.Followers}`,
+      `Following: ${result.Following}`,
+      `Tweets: ${result.TweetsCount}`,
+      `Blue verified: ${result.IsBlueVerified}`,
+      `Provider: ${result.provider}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'Twitter profile',
+    { output },
+  )
+}
+
+export async function renderTwitterTweetsResult(
+  context: CommandContext,
+  result: TwitterTweetsResult | TwitterHighlightsResult,
+  label: 'tweets' | 'highlights',
+) {
+  if (context.mode === 'plain') {
+    const lines = [
+      `userId: ${result.userId}`,
+      `count: ${result.count}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ]
+    for (const t of result.items) {
+      lines.push(
+        `${label}: ${t.ID} likes=${t.Likes} retweets=${t.Retweets} views=${t.Views} createdAt=${t.CreatedAt}`,
+      )
+    }
+    renderPlainBlock(context, lines)
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`${result.items.length} ${label} for user ${result.userId}`, { output })
+  for (const t of result.items) {
+    note(
+      [t.Text, `Likes ${t.Likes} · RT ${t.Retweets} · Views ${t.Views}`, t.CreatedAt].join('\n'),
+      t.ID,
+      { output },
+    )
+  }
+}
+
+export async function renderTwitterFollowingsResult(
+  context: CommandContext,
+  result: TwitterFollowingsResult,
+) {
+  if (context.mode === 'plain') {
+    const lines = [
+      `userId: ${result.userId}`,
+      `count: ${result.count}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ]
+    for (const u of result.items) {
+      lines.push(`following: ${u.RestID} @${u.Username} followers=${u.Followers}`)
+    }
+    renderPlainBlock(context, lines)
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`${result.items.length} followings for user ${result.userId}`, { output })
+  for (const u of result.items) {
+    note(
+      `${u.DisplayName}\nFollowers ${u.Followers} · Following ${u.Following}`,
+      `@${u.Username}`,
+      { output },
+    )
+  }
 }
 
 export function renderFriendlyError(context: CommandContext, error: CliError) {
