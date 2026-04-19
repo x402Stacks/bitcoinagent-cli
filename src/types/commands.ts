@@ -96,3 +96,50 @@ export type TiktokVideosResult = {
   provider: string
   timestamp: string
 }
+
+export type TwitterUser = {
+  RestID: string
+  Username: string
+  DisplayName: string
+  Description: string
+  Followers: number
+  Following: number
+  TweetsCount: number
+  Location: string
+  ProfileImageURL: string
+  IsBlueVerified: boolean
+}
+
+export type TwitterProfileResult = TwitterUser & {
+  provider: string
+  timestamp: string
+}
+
+export type TwitterTweet = {
+  ID: string
+  Text: string
+  Likes: number
+  Retweets: number
+  Replies: number
+  Views: number
+  BookmarkCount: number
+  CreatedAt: string
+}
+
+export type TwitterTweetsResult = {
+  userId: string
+  count: number
+  items: TwitterTweet[]
+  provider: string
+  timestamp: string
+}
+
+export type TwitterHighlightsResult = TwitterTweetsResult
+
+export type TwitterFollowingsResult = {
+  userId: string
+  count: number
+  items: TwitterUser[]
+  provider: string
+  timestamp: string
+}
