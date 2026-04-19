@@ -72,3 +72,27 @@ export type ServiceEndpointsResult = {
   provider: string
   timestamp: string
 }
+
+export type TiktokProfile = {
+  Username: string
+  DisplayName: string
+  Followers: number
+}
+
+export type TiktokProfileResult = TiktokProfile & {
+  provider: string
+  timestamp: string
+}
+
+export type TiktokVideo = {
+  ID: string
+  Title: string
+  Views: number
+}
+
+export type TiktokVideosResult = {
+  username: string
+  videos: TiktokVideo[]
+  provider: string
+  timestamp: string
+}
