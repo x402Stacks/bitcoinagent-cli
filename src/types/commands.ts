@@ -40,3 +40,35 @@ export type WalletCommandResult = {
   network: 'mainnet' | 'testnet'
   timestamp: string
 }
+
+export type ServiceSummary = { name: string; has_paid_endpoints: boolean }
+
+export type ServicesListResult = {
+  services: ServiceSummary[]
+  provider: string
+  timestamp: string
+}
+
+export type EndpointPayment = {
+  scheme: string
+  required: boolean
+  enabled: boolean
+  asset: string
+  amount: string
+  network: string
+}
+
+export type EndpointSpec = {
+  method: string
+  path: string
+  description: string
+  query_params: string[]
+  payment?: EndpointPayment
+}
+
+export type ServiceEndpointsResult = {
+  service: string
+  endpoints: EndpointSpec[]
+  provider: string
+  timestamp: string
+}
