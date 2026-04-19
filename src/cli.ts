@@ -6,6 +6,7 @@ import { registerWalletCommand } from './commands/wallet.js'
 import { registerServicesCommand } from './commands/services.js'
 import { registerTiktokCommand } from './commands/tiktok.js'
 import { registerTwitterCommand } from './commands/twitter.js'
+import { registerHealthCommand } from './commands/health.js'
 import { registerCompletionSupport } from './completions/tab.js'
 import { ValidationError } from './core/errors.js'
 import { getExitCode } from './core/exit.js'
@@ -51,6 +52,7 @@ function createProgram(runtime: ResolvedRuntime) {
   registerServicesCommand(program, runtime)
   registerTiktokCommand(program, runtime)
   registerTwitterCommand(program, runtime)
+  registerHealthCommand(program, runtime)
   registerCompletionSupport(program)
 
   return program

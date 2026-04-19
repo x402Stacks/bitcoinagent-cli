@@ -143,3 +143,5 @@ export type TwitterFollowingsResult = {
   provider: string
   timestamp: string
 }
+
+export type HealthResult = { status: string; timestamp: string }

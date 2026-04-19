@@ -49,7 +49,23 @@ export function createPaidClient(config: ApiConfig, deps: PaidClientDeps = {}): 
     }
   }
 
-  return { get }
+  async function getRaw<T>(path: string): Promise<T> {
+    try {
+      const response = await api.get(path)
+      return response.data as T
+    } catch (err) {
+      const errResponse = (err as { response?: { status?: number; data?: { error?: string } } }).response
+      if (errResponse && typeof errResponse.status === 'number') {
+        throw mapApiError(errResponse.status, errResponse.data?.error, `GET ${path}`)
+      }
+      throw new UpstreamError('Network request failed.', {
+        endpoint: `GET ${path}`,
+        cause: err instanceof Error ? err.message : String(err),
+      })
+    }
+  }
+
+  return { get, getRaw }
 }
 
 function requireStacks(stacks?: StacksConfig): StacksConfig {

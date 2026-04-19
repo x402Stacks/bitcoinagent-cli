@@ -4,6 +4,7 @@ import type { CliError } from '../core/errors.js'
 import { createLogger } from '../core/logger.js'
 import type { CommandContext } from '../types/context.js'
 import type {
+  HealthResult,
   RunCommandResult,
   ServiceEndpointsResult,
   ServicesListResult,
@@ -346,6 +347,29 @@ export async function renderTwitterFollowingsResult(
       { output },
     )
   }
+}
+
+export async function renderHealthResult(context: CommandContext, result: { status: string; timestamp: string; provider: string }) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `status: ${result.status}`,
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`API health: ${result.status}`, { output })
+  note(
+    [
+      `Status: ${result.status}`,
+      `Provider: ${result.provider}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'Health',
+    { output },
+  )
 }
 
 export function renderFriendlyError(context: CommandContext, error: CliError) {

@@ -7,6 +7,7 @@ export interface ApiClient {
     path: string,
     params?: Record<string, string | number | undefined>,
   ): Promise<{ data: T; provider: string }>
+  getRaw<T>(path: string): Promise<T>
 }
 
 export interface ApiClientDeps {
@@ -48,7 +49,36 @@ export function createFreeClient(config: ApiConfig, deps: ApiClientDeps = {}): A
     return unwrapEnvelope<T>(json)
   }
 
-  return { get }
+  async function getRaw<T>(path: string): Promise<T> {
+    const url = buildUrl(config.baseURL, path)
+    let response: Response
+    try {
+      response = await doFetch(url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(config.timeoutMs),
+        headers: { accept: 'application/json' },
+      })
+    } catch (err) {
+      throw new UpstreamError('Network request failed.', {
+        endpoint: `GET ${path}`,
+        cause: err instanceof Error ? err.message : String(err),
+      })
+    }
+
+    const json = await response.json().catch(() => undefined)
+
+    if (!response.ok) {
+      const apiErrorCode =
+        typeof json === 'object' && json !== null && 'error' in json
+          ? String((json as { error: unknown }).error)
+          : undefined
+      throw mapApiError(response.status, apiErrorCode, `GET ${path}`)
+    }
+
+    return json as T
+  }
+
+  return { get, getRaw }
 }
 
 function buildUrl(
