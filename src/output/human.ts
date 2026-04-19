@@ -5,6 +5,8 @@ import { createLogger } from '../core/logger.js'
 import type { CommandContext } from '../types/context.js'
 import type {
   RunCommandResult,
+  ServiceEndpointsResult,
+  ServicesListResult,
   StatusCommandResult,
   WalletCommandResult,
 } from '../types/commands.js'
@@ -135,6 +137,62 @@ export async function renderWalletResult(context: CommandContext, result: Wallet
     'Wallet',
     { output },
   )
+}
+
+export async function renderServicesListResult(
+  context: CommandContext,
+  result: ServicesListResult,
+) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `provider: ${result.provider}`,
+      `timestamp: ${result.timestamp}`,
+      ...result.services.map(
+        (s) => `service: ${s.name} paid=${s.has_paid_endpoints}`,
+      ),
+    ])
+    return
+  }
+
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`Discovered ${result.services.length} services`, { output })
+  note(
+    result.services
+      .map((s) => `${s.name}${s.has_paid_endpoints ? '  (paid)' : '  (free)'}`)
+      .join('\n'),
+    'Services',
+    { output },
+  )
+}
+
+export async function renderServiceEndpointsResult(
+  context: CommandContext,
+  result: ServiceEndpointsResult,
+) {
+  if (context.mode === 'plain') {
+    const lines = [`service: ${result.service}`, `provider: ${result.provider}`, `timestamp: ${result.timestamp}`]
+    for (const ep of result.endpoints) {
+      lines.push(`endpoint: ${ep.method} ${ep.path}`)
+      if (ep.payment) {
+        lines.push(
+          `  payment: enabled=${ep.payment.enabled} required=${ep.payment.required} asset=${ep.payment.asset} amount=${ep.payment.amount} network=${ep.payment.network}`,
+        )
+      }
+    }
+    renderPlainBlock(context, lines)
+    return
+  }
+
+  renderBanner(context)
+  const output = toNodeWritable(context.stdout)
+  log.success(`Endpoints for ${result.service}`, { output })
+  for (const ep of result.endpoints) {
+    const payment = ep.payment
+      ? `\nPayment: ${ep.payment.enabled ? 'enabled' : 'advertised'} — ${ep.payment.amount} ${ep.payment.asset} on ${ep.payment.network}`
+      : ''
+    note(`${ep.method} ${ep.path}\n${ep.description}${payment}`, ep.path, { output })
+  }
 }
 
 export function renderFriendlyError(context: CommandContext, error: CliError) {
