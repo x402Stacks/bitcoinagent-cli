@@ -32,12 +32,15 @@ src/
 ├── index.ts              # entrypoint (#!/usr/bin/env node)
 ├── cli.ts                # program creation, runtime wiring, help/JSON-help handling
 ├── commands/
+│   ├── api.ts            # bitcoinagent API endpoint commands
 │   ├── run.ts            # run command (registration + validation + execution)
-│   └── status.ts        # status command
+│   ├── status.ts        # status command
+│   └── wallet.ts        # Stacks wallet command
 ├── completions/
 │   └── tab.ts            # @bomb.sh/tab shell completion integration
 ├── core/
-│   ├── errors.ts         # CliError hierarchy (ValidationError, NotFoundError, InternalError)
+│   ├── api-config.ts     # bitcoinagent API base URL helpers
+│   ├── errors.ts         # CliError hierarchy (ValidationError, NotFoundError, PaymentRequiredError, InternalError)
 │   ├── exit.ts           # exit code mapping by error code
 │   ├── logger.ts         # logger suppressed in JSON mode
 │   └── env.ts            # environment helpers (CI, NO_COLOR)
@@ -45,7 +48,10 @@ src/
 │   ├── agent.ts          # structured JSON response helpers (createSuccessResponse, createErrorResponse)
 │   └── human.ts          # human/plain renderers + ASCII banner (human-only)
 ├── services/
-│   └── agent-service.ts  # deterministic fake business logic
+│   ├── agent-service.ts  # deterministic fake business logic
+│   ├── bitcoinagent-api.ts # HTTP client for Go bitcoinagent endpoints
+│   ├── stacks-client.ts  # x402-stacks payment client factory
+│   └── wallet-service.ts # Stacks wallet derivation
 ├── types/
 │   ├── output.ts         # OutputMode, CliResponse<T>
 │   ├── context.ts        # Writer, RuntimeOptions, TerminalInfo, CommandContext
@@ -65,6 +71,7 @@ src/
 5. **Logger suppression**: `core/logger.ts` returns no-op methods when mode is `json`. Use the logger, never `console.log`.
 6. **Banner**: ASCII logo banner appears in human mode only. Plain and json modes must never emit it.
 7. **Help safety**: `--json --help` returns a JSON validation error (code `VALIDATION_ERROR`). Help without `--json` exits cleanly with code 0.
+8. **API endpoint commands**: endpoint commands call `BITCOINAGENT_API_URL` or `http://localhost:8080`, support `--api-url`, and return decoded x402 `payment-required` challenge metadata as `PAYMENT_REQUIRED`. Use service-scoped commands (`airbnb`, `booking`, `google-flights`, `instagram`, `tiktok`, `twitch`, `twitter`, `zillow`) or `api-call` for full expanded API coverage, including newer GET/POST endpoints discovered through `service-endpoints`.
 
 ## Dependencies
 

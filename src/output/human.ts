@@ -4,6 +4,7 @@ import type { CliError } from '../core/errors.js'
 import { createLogger } from '../core/logger.js'
 import type { CommandContext } from '../types/context.js'
 import type {
+  ApiEndpointResult,
   RunCommandResult,
   StatusCommandResult,
   WalletCommandResult,
@@ -133,6 +134,41 @@ export async function renderWalletResult(context: CommandContext, result: Wallet
       `Timestamp: ${result.timestamp}`,
     ].join('\n'),
     'Wallet',
+    { output },
+  )
+}
+
+function formatResponse(value: unknown, pretty = false): string {
+  return JSON.stringify(value, null, pretty ? 2 : 0)
+}
+
+export async function renderApiEndpointResult(context: CommandContext, result: ApiEndpointResult) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `endpoint: ${result.method} ${result.endpoint}`,
+      `statusCode: ${result.statusCode}`,
+      ...(result.provider === undefined ? [] : [`provider: ${result.provider}`]),
+      `url: ${result.url}`,
+      `response: ${formatResponse(result.response)}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+
+  renderBanner(context)
+
+  const output = toNodeWritable(context.stdout)
+
+  log.success(`Fetched ${result.method} ${result.endpoint}`, { output })
+  note(
+    [
+      `Status: ${result.statusCode}`,
+      ...(result.provider === undefined ? [] : [`Provider: ${result.provider}`]),
+      `URL: ${result.url}`,
+      `Response: ${formatResponse(result.response, true)}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'API Response',
     { output },
   )
 }

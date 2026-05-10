@@ -1,7 +1,7 @@
 import { CommanderError } from 'commander'
 import { ZodError } from 'zod'
 
-export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR'
+export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'PAYMENT_REQUIRED' | 'INTERNAL_ERROR'
 
 export class CliError extends Error {
   constructor(
@@ -23,6 +23,12 @@ export class ValidationError extends CliError {
 export class NotFoundError extends CliError {
   constructor(message: string, details?: unknown) {
     super('NOT_FOUND', message, details)
+  }
+}
+
+export class PaymentRequiredError extends CliError {
+  constructor(message: string, details?: unknown) {
+    super('PAYMENT_REQUIRED', message, details)
   }
 }
 
