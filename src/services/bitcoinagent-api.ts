@@ -48,7 +48,8 @@ function appendQueryPairs(path: string, query: readonly ApiQueryPair[] = []) {
   return encoded ? `${path}?${encoded}` : path
 }
 
-function getPathname(value: string) {
+function getRawPathname(value: string) {
+  // URL.pathname normalizes dot segments before validation; keep the raw path here.
   const queryIndex = value.indexOf('?')
   const hashIndex = value.indexOf('#')
   const endIndexes = [queryIndex, hashIndex].filter((index) => index >= 0)
@@ -66,7 +67,7 @@ function validateEndpointPath(path: string) {
     throw new ValidationError('Endpoint path must not be a network-path reference.')
   }
 
-  const pathname = getPathname(path)
+  const pathname = getRawPathname(path)
 
   if (pathname.includes('\\')) {
     throw new ValidationError('Endpoint path must use forward slashes.')
