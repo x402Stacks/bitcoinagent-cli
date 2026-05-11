@@ -50,6 +50,19 @@ const usernameSchema = apiCommandSchema.extend({
   username: z.string().trim().min(1, 'Username is required.'),
 })
 
+const tiktokVideosSchema = apiCommandSchema.extend({
+  secUid: z.string().trim().min(1, 'secUid is required.'),
+  count: z.preprocess((value) => {
+    if (value === undefined) {
+      return undefined
+    }
+
+    const number = Number(value)
+    return Number.isFinite(number) ? number : value
+  }, z.number().int().positive('Count must be positive.').optional()),
+  cursor: z.string().trim().min(1, 'Cursor is required.').optional(),
+})
+
 const userIdSchema = apiCommandSchema.extend({
   userId: z.string().trim().min(1, 'User ID is required.'),
   count: z.preprocess((value) => {
@@ -301,7 +314,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
       })
   }
 
-  withEndpointOptions(program.command('tiktok-profile').description('Call GET /api/v1/tiktok/profile'))
+  withEndpointOptions(program.command('tiktok-profile').description('Call GET /api/v1/tiktok/user/info'))
     .requiredOption('--username <username>', 'TikTok username')
     .action(async (options: Record<string, unknown>) => {
       runtime.exitCode = await handleApiCommand(
@@ -312,14 +325,22 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
       )
     })
 
-  withEndpointOptions(program.command('tiktok-videos').description('Call GET /api/v1/tiktok/videos'))
-    .requiredOption('--username <username>', 'TikTok username')
+  withEndpointOptions(program.command('tiktok-videos').description('Call GET /api/v1/tiktok/user/posts'))
+    .requiredOption('--sec-uid <secUid>', 'TikTok user secUid')
+    .option('--count <number>', 'Number of posts to return')
+    .option('--cursor <cursor>', 'Pagination cursor')
     .action(async (options: Record<string, unknown>) => {
       runtime.exitCode = await handleApiCommand(
         options,
         runtime,
-        (value) => usernameSchema.parse(value),
-        (parsed, config, timestamp) => listTikTokVideos(config, parsed.username, timestamp),
+        (value) => tiktokVideosSchema.parse(value),
+        (parsed, config, timestamp) => listTikTokVideos(
+          config,
+          parsed.secUid,
+          parsed.count,
+          parsed.cursor,
+          timestamp,
+        ),
       )
     })
 

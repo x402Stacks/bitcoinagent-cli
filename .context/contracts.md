@@ -193,7 +193,7 @@ type CliResponse<T> = {
       "endpoint": "/api/v1/twitter/profile",
       "paymentRequired": {
         "accepts": [
-          { "scheme": "exact", "network": "testnet", "asset": "STX", "amount": "1000" }
+          { "scheme": "exact", "network": "stacks:2147483648", "asset": "STX", "amount": "1000" }
         ]
       }
     }

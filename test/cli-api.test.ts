@@ -42,7 +42,7 @@ function createPaymentRequiredHeader() {
     accepts: [
       {
         scheme: 'exact',
-        network: 'testnet',
+        network: 'stacks:2147483648',
         asset: 'STX',
         amount: '1000',
       },
@@ -67,7 +67,7 @@ async function startApiServer() {
         data: {
           services: [
             { name: 'twitter', has_paid_endpoints: true },
-            { name: 'tiktok', has_paid_endpoints: false },
+            { name: 'tiktok', has_paid_endpoints: true },
           ],
         },
         meta: { provider: 'internal' },
@@ -91,7 +91,7 @@ async function startApiServer() {
                 enabled: true,
                 asset: 'STX',
                 amount: '1000',
-                network: 'testnet',
+                network: 'stacks:2147483648',
               },
             },
           ],
@@ -101,24 +101,45 @@ async function startApiServer() {
       return
     }
 
-    if (url.pathname === '/api/v1/tiktok/profile') {
+    if (url.pathname === '/api/v1/tiktok/user/info') {
       writeJson(res, 200, {
         data: {
-          Username: url.searchParams.get('username'),
-          DisplayName: 'Creator One',
-          Followers: 1200,
+          statusCode: 0,
+          status_code: 0,
+          provider: 'fake',
+          endpoint: '/api/user/info',
+          query: {
+            uniqueId: url.searchParams.get('uniqueId'),
+          },
+          data: {
+            id: 'fake-tiktok-resource',
+            uniqueId: 'fake_creator',
+            title: 'Fake TikTok testnet payload',
+          },
         },
-        meta: { provider: 'mock' },
+        meta: { provider: 'fake' },
       })
       return
     }
 
-    if (url.pathname === '/api/v1/tiktok/videos') {
+    if (url.pathname === '/api/v1/tiktok/user/posts') {
       writeJson(res, 200, {
-        data: [
-          { ID: 'video-1', Title: 'First video', Views: 50000 },
-        ],
-        meta: { provider: 'mock' },
+        data: {
+          statusCode: 0,
+          status_code: 0,
+          provider: 'fake',
+          endpoint: '/api/user/posts',
+          query: {
+            secUid: url.searchParams.get('secUid'),
+            count: url.searchParams.get('count'),
+          },
+          data: {
+            id: 'fake-tiktok-resource',
+            uniqueId: 'fake_creator',
+            title: 'Fake TikTok testnet payload',
+          },
+        },
+        meta: { provider: 'fake' },
       })
       return
     }
@@ -307,26 +328,37 @@ describe('api endpoint commands', () => {
     expect(payload.data.response.endpoints[0].payment.amount).toBe('1000')
   })
 
-  it('fetches a TikTok profile by username', async () => {
+  it('fetches TikTok user info by username through the testnet API23 route', async () => {
     const apiUrl = await startApiServer()
     const result = await execute(['tiktok-profile', '--username', 'creator_1', '--api-url', apiUrl, '--json'])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(0)
-    expect(payload.data.provider).toBe('mock')
-    expect(payload.data.response.Username).toBe('creator_1')
-    expect(requests.at(-1)?.url).toBe('/api/v1/tiktok/profile?username=creator_1')
+    expect(payload.data.provider).toBe('fake')
+    expect(payload.data.response.endpoint).toBe('/api/user/info')
+    expect(payload.data.response.query.uniqueId).toBe('creator_1')
+    expect(requests.at(-1)?.url).toBe('/api/v1/tiktok/user/info?uniqueId=creator_1')
   })
 
-  it('lists TikTok videos by username', async () => {
+  it('lists TikTok user posts by secUid through the testnet API23 route', async () => {
     const apiUrl = await startApiServer()
-    const result = await execute(['tiktok-videos', '--username', 'creator_1', '--api-url', apiUrl, '--json'])
+    const result = await execute([
+      'tiktok-videos',
+      '--sec-uid',
+      'sec-user-1',
+      '--count',
+      '5',
+      '--api-url',
+      apiUrl,
+      '--json',
+    ])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(0)
-    expect(payload.data.provider).toBe('mock')
-    expect(payload.data.response[0].ID).toBe('video-1')
-    expect(requests.at(-1)?.url).toBe('/api/v1/tiktok/videos?username=creator_1')
+    expect(payload.data.provider).toBe('fake')
+    expect(payload.data.response.endpoint).toBe('/api/user/posts')
+    expect(payload.data.response.query).toEqual({ secUid: 'sec-user-1', count: '5' })
+    expect(requests.at(-1)?.url).toBe('/api/v1/tiktok/user/posts?secUid=sec-user-1&count=5')
   })
 
   it('fetches Twitter highlights with an optional count', async () => {
@@ -400,7 +432,7 @@ describe('api endpoint commands', () => {
     expect(payload.error.code).toBe('PAYMENT_REQUIRED')
     expect(payload.error.details.paymentRequired.accepts[0]).toEqual({
       scheme: 'exact',
-      network: 'testnet',
+      network: 'stacks:2147483648',
       asset: 'STX',
       amount: '1000',
     })

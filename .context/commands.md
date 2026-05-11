@@ -42,11 +42,16 @@ JSON success payloads are wrapped in the CLI `CliResponse` shape. The command `d
 ```json
 {
   "method": "GET",
-  "endpoint": "/api/v1/tiktok/profile",
-  "url": "http://localhost:8080/api/v1/tiktok/profile?username=creator_1",
+  "endpoint": "/api/v1/tiktok/user/info",
+  "url": "http://localhost:8080/api/v1/tiktok/user/info?uniqueId=creator_1",
   "statusCode": 200,
-  "provider": "mock",
-  "response": { "Username": "creator_1", "DisplayName": "Mock TikTok User", "Followers": 2500 },
+  "provider": "fake",
+  "response": {
+    "statusCode": 0,
+    "provider": "fake",
+    "endpoint": "/api/user/info",
+    "query": { "uniqueId": "creator_1" }
+  },
   "timestamp": "2026-04-16T00:00:00.000Z"
 }
 ```
@@ -60,8 +65,8 @@ The `response` field contains the API endpoint's unwrapped `data` payload. `prov
 | `health` | `GET /health` |
 | `services` | `GET /api/v1/services` |
 | `service-endpoints --service <name>` | `GET /api/v1/services/:service/endpoints` |
-| `tiktok-profile --username <username>` | `GET /api/v1/tiktok/profile?username=...` |
-| `tiktok-videos --username <username>` | `GET /api/v1/tiktok/videos?username=...` |
+| `tiktok-profile --username <username>` | `GET /api/v1/tiktok/user/info?uniqueId=...` |
+| `tiktok-videos --sec-uid <secUid> [--count <number>] [--cursor <cursor>]` | `GET /api/v1/tiktok/user/posts?secUid=...&count=...&cursor=...` |
 | `twitter-profile --username <username>` | `GET /api/v1/twitter/profile?username=...` |
 | `twitter-highlights --user-id <id> [--count <number>]` | `GET /api/v1/twitter/highlights?user_id=...&count=...` |
 | `twitter-tweets --user-id <id> [--count <number>]` | `GET /api/v1/twitter/tweets?user_id=...&count=...` |

@@ -64,12 +64,14 @@ pnpm exec tsx src/index.ts health --json
 pnpm exec tsx src/index.ts services --json
 pnpm exec tsx src/index.ts service-endpoints --service twitter --json
 pnpm exec tsx src/index.ts tiktok-profile --username creator_1 --json
-pnpm exec tsx src/index.ts tiktok-videos --username creator_1 --json
+pnpm exec tsx src/index.ts tiktok-videos --sec-uid MS4wLjABAAAA_fake_sec_uid --count 20 --json
 pnpm exec tsx src/index.ts twitter-profile --username MrBeast --json
 pnpm exec tsx src/index.ts twitter-highlights --user-id 877807935493033984 --count 20 --json
 pnpm exec tsx src/index.ts twitter-tweets --user-id 2455740283 --count 20 --json
 pnpm exec tsx src/index.ts twitter-followings --user-id 2455740283 --count 20 --json
 ```
+
+`tiktok-profile` maps to the API23 `GET /api/v1/tiktok/user/info` route with `uniqueId=<username>`. `tiktok-videos` maps to `GET /api/v1/tiktok/user/posts`, which requires `--sec-uid`.
 
 For the expanded endpoint surface, use either a service command with a relative path or the full-path generic endpoint caller. Service commands are available for `airbnb`, `booking`, `google-flights`, `instagram`, `tiktok`, `twitch`, `twitter`, and `zillow`.
 

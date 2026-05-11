@@ -259,17 +259,19 @@ export function getTikTokProfile(
   username: string,
   timestamp: string,
 ) {
-  const endpoint = '/api/v1/tiktok/profile'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { username }), timestamp)
+  const endpoint = '/api/v1/tiktok/user/info'
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { uniqueId: username }), timestamp)
 }
 
 export function listTikTokVideos(
   config: BitcoinAgentApiConfig,
-  username: string,
+  secUid: string,
+  count: number | undefined,
+  cursor: string | undefined,
   timestamp: string,
 ) {
-  const endpoint = '/api/v1/tiktok/videos'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { username }), timestamp)
+  const endpoint = '/api/v1/tiktok/user/posts'
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { secUid, count, cursor }), timestamp)
 }
 
 export function getTwitterProfile(
