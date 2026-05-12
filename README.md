@@ -57,7 +57,7 @@ JSON mode is automation-safe:
 
 ## Bitcoinagent API Endpoint Commands
 
-Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAGENT_API_URL`, falling back to `http://localhost:8080`. Every endpoint command also accepts `--api-url <url>`.
+Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAGENT_API_URL`, falling back to `http://localhost:8082`. Every endpoint command also accepts `--api-url <url>`.
 
 ```bash
 pnpm exec tsx src/index.ts health --json

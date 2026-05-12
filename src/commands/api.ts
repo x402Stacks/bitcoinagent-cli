@@ -235,7 +235,7 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
 
 function withEndpointOptions(command: Command) {
   return command
-    .option('--api-url <url>', 'Bitcoinagent API base URL (defaults to BITCOINAGENT_API_URL or http://localhost:8080)')
+    .option('--api-url <url>', 'Bitcoinagent API base URL (defaults to BITCOINAGENT_API_URL or http://localhost:8082)')
     .option('--json', 'Emit structured JSON only')
     .option('--plain', 'Emit minimal readable text')
 }
