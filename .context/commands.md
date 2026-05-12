@@ -71,7 +71,7 @@ The `response` field contains the API endpoint's unwrapped `data` payload. `prov
 | `twitter-highlights --user-id <id> [--count <number>]` | `GET /api/v1/twitter/highlights?user_id=...&count=...` |
 | `twitter-tweets --user-id <id> [--count <number>]` | `GET /api/v1/twitter/tweets?user_id=...&count=...` |
 | `twitter-followings --user-id <id> [--count <number>]` | `GET /api/v1/twitter/followings?user_id=...&count=...` |
-| `<service> --endpoint <path> [--method <GET\|POST>] [--query <key=value>...] [--body-json <json>]` | Any endpoint under `airbnb`, `booking`, `google-flights`, `instagram`, `tiktok`, `twitch`, `twitter`, or `zillow` |
+| `<service> --endpoint <path> [--method <GET\|POST>] [--query <key=value>...] [--body-json <json>]` | Any endpoint under `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, or `zillow` |
 | `api-call --method <GET\|POST> --path <path> [--query <key=value>...] [--body-json <json>]` | Any bitcoinagent API endpoint |
 
 Service commands and `api-call` cover the expanded API surface. Use `services` and `service-endpoints --service <name>` to discover endpoint paths and query parameters. Pass a relative path such as `stays/search` to a service command, or pass the full path such as `/api/v1/airbnb/stays/search` to `api-call`.
@@ -90,6 +90,17 @@ agent-cli google-flights \
   --endpoint booking/url \
   --method POST \
   --body-json '{"token":"booking-token"}' \
+  --json
+
+agent-cli linkedin \
+  --endpoint get-company-by-domain \
+  --query domain=apple.com \
+  --json
+
+agent-cli linkedin \
+  --endpoint search-posts \
+  --method POST \
+  --body-json '{"search_keywords":"ai","page":1}' \
   --json
 
 agent-cli api-call \

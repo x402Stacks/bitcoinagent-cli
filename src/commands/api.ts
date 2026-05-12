@@ -28,6 +28,7 @@ const apiServiceNames = [
   'booking',
   'google-flights',
   'instagram',
+  'linkedin',
   'tiktok',
   'twitch',
   'twitter',

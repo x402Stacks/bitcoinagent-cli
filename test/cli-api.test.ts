@@ -68,6 +68,7 @@ async function startApiServer() {
           services: [
             { name: 'twitter', has_paid_endpoints: true },
             { name: 'tiktok', has_paid_endpoints: true },
+            { name: 'linkedin', has_paid_endpoints: true },
           ],
         },
         meta: { provider: 'internal' },
@@ -85,6 +86,46 @@ async function startApiServer() {
               path: '/api/v1/twitter/profile',
               description: 'Fetch a Twitter profile by username',
               query_params: ['username'],
+              payment: {
+                scheme: 'exact',
+                required: true,
+                enabled: true,
+                asset: 'STX',
+                amount: '1000',
+                network: 'stacks:2147483648',
+              },
+            },
+          ],
+        },
+        meta: { provider: 'internal' },
+      })
+      return
+    }
+
+    if (url.pathname === '/api/v1/services/linkedin/endpoints') {
+      writeJson(res, 200, {
+        data: {
+          service: 'linkedin',
+          endpoints: [
+            {
+              method: 'GET',
+              path: '/api/v1/linkedin/get-company-by-domain',
+              description: 'Get Company by Domain',
+              query_params: ['domain'],
+              payment: {
+                scheme: 'exact',
+                required: true,
+                enabled: true,
+                asset: 'STX',
+                amount: '1000',
+                network: 'stacks:2147483648',
+              },
+            },
+            {
+              method: 'POST',
+              path: '/api/v1/linkedin/search-posts',
+              description: 'Search Posts',
+              query_params: [],
               payment: {
                 scheme: 'exact',
                 required: true,
@@ -140,6 +181,49 @@ async function startApiServer() {
           },
         },
         meta: { provider: 'fake' },
+      })
+      return
+    }
+
+    if (url.pathname === '/api/v1/linkedin/get-company-by-domain') {
+      writeJson(res, 200, {
+        data: {
+          provider: 'fake',
+          method: 'GET',
+          endpoint: '/get-company-by-domain',
+          query: {
+            domain: url.searchParams.get('domain'),
+          },
+          data: {
+            id: 'fake-linkedin-resource',
+            name: 'Fake LinkedIn testnet payload',
+          },
+        },
+        meta: { provider: 'fake' },
+      })
+      return
+    }
+
+    if (url.pathname === '/api/v1/linkedin/search-posts' && req.method === 'POST') {
+      let body = ''
+      req.on('data', (chunk: Buffer) => {
+        body += chunk.toString('utf8')
+      })
+      req.on('end', () => {
+        writeJson(res, 200, {
+          data: {
+            provider: 'fake',
+            method: 'POST',
+            endpoint: '/search-posts',
+            query: {},
+            body: JSON.parse(body),
+            data: {
+              id: 'fake-linkedin-resource',
+              name: 'Fake LinkedIn testnet payload',
+            },
+          },
+          meta: { provider: 'fake' },
+        })
       })
       return
     }
@@ -315,6 +399,10 @@ describe('api endpoint commands', () => {
       name: 'twitter',
       has_paid_endpoints: true,
     })
+    expect(payload.data.response.services.at(-1)).toEqual({
+      name: 'linkedin',
+      has_paid_endpoints: true,
+    })
   })
 
   it('lists endpoints for a service', async () => {
@@ -326,6 +414,20 @@ describe('api endpoint commands', () => {
     expect(payload.data.endpoint).toBe('/api/v1/services/twitter/endpoints')
     expect(payload.data.response.service).toBe('twitter')
     expect(payload.data.response.endpoints[0].payment.amount).toBe('1000')
+  })
+
+  it('lists LinkedIn endpoints through discovery', async () => {
+    const apiUrl = await startApiServer()
+    const result = await execute(['service-endpoints', '--service', 'linkedin', '--api-url', apiUrl, '--json'])
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.data.endpoint).toBe('/api/v1/services/linkedin/endpoints')
+    expect(payload.data.response.service).toBe('linkedin')
+    expect(payload.data.response.endpoints.map((endpoint: { path: string }) => endpoint.path)).toEqual([
+      '/api/v1/linkedin/get-company-by-domain',
+      '/api/v1/linkedin/search-posts',
+    ])
   })
 
   it('fetches TikTok user info by username through the testnet API23 route', async () => {
@@ -589,6 +691,52 @@ describe('api endpoint commands', () => {
     expect(payload.data.method).toBe('POST')
     expect(payload.data.endpoint).toBe('/api/v1/google-flights/booking/url')
     expect(payload.data.response.received).toEqual({ token: 'booking-token' })
+    expect(requests.at(-1)?.method).toBe('POST')
+  })
+
+  it('calls a LinkedIn GET endpoint by service command and relative endpoint path', async () => {
+    const apiUrl = await startApiServer()
+    const result = await execute([
+      'linkedin',
+      '--endpoint',
+      'get-company-by-domain',
+      '--query',
+      'domain=apple.com',
+      '--api-url',
+      apiUrl,
+      '--json',
+    ])
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.data.endpoint).toBe('/api/v1/linkedin/get-company-by-domain')
+    expect(payload.data.provider).toBe('fake')
+    expect(payload.data.response.query).toEqual({ domain: 'apple.com' })
+    expect(payload.data.response.data.name).toBe('Fake LinkedIn testnet payload')
+    expect(requests.at(-1)?.method).toBe('GET')
+    expect(requests.at(-1)?.url).toBe('/api/v1/linkedin/get-company-by-domain?domain=apple.com')
+  })
+
+  it('calls a LinkedIn POST endpoint by service command and JSON body', async () => {
+    const apiUrl = await startApiServer()
+    const result = await execute([
+      'linkedin',
+      '--endpoint',
+      'search-posts',
+      '--method',
+      'POST',
+      '--body-json',
+      '{"search_keywords":"ai","page":1}',
+      '--api-url',
+      apiUrl,
+      '--json',
+    ])
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.data.method).toBe('POST')
+    expect(payload.data.endpoint).toBe('/api/v1/linkedin/search-posts')
+    expect(payload.data.response.body).toEqual({ search_keywords: 'ai', page: 1 })
     expect(requests.at(-1)?.method).toBe('POST')
   })
 })

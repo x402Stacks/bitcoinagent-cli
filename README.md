@@ -63,6 +63,7 @@ Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAG
 pnpm exec tsx src/index.ts health --json
 pnpm exec tsx src/index.ts services --json
 pnpm exec tsx src/index.ts service-endpoints --service twitter --json
+pnpm exec tsx src/index.ts service-endpoints --service linkedin --json
 pnpm exec tsx src/index.ts tiktok-profile --username creator_1 --json
 pnpm exec tsx src/index.ts tiktok-videos --sec-uid MS4wLjABAAAA_fake_sec_uid --count 20 --json
 pnpm exec tsx src/index.ts twitter-profile --username MrBeast --json
@@ -73,7 +74,7 @@ pnpm exec tsx src/index.ts twitter-followings --user-id 2455740283 --count 20 --
 
 `tiktok-profile` maps to the API23 `GET /api/v1/tiktok/user/info` route with `uniqueId=<username>`. `tiktok-videos` maps to `GET /api/v1/tiktok/user/posts`, which requires `--sec-uid`.
 
-For the expanded endpoint surface, use either a service command with a relative path or the full-path generic endpoint caller. Service commands are available for `airbnb`, `booking`, `google-flights`, `instagram`, `tiktok`, `twitch`, `twitter`, and `zillow`.
+For the expanded endpoint surface, use either a service command with a relative path or the full-path generic endpoint caller. Service commands are available for `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, and `zillow`.
 
 ```bash
 pnpm exec tsx src/index.ts airbnb \
@@ -85,6 +86,17 @@ pnpm exec tsx src/index.ts google-flights \
   --endpoint booking/url \
   --method POST \
   --body-json '{"token":"booking-token"}' \
+  --json
+
+pnpm exec tsx src/index.ts linkedin \
+  --endpoint get-company-by-domain \
+  --query domain=apple.com \
+  --json
+
+pnpm exec tsx src/index.ts linkedin \
+  --endpoint search-posts \
+  --method POST \
+  --body-json '{"search_keywords":"ai","page":1}' \
   --json
 ```
 

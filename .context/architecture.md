@@ -139,7 +139,7 @@ Registers all HTTP endpoint commands for the Go `bitcoinagent` API:
 - `services`
 - `service-endpoints`
 - `api-call`
-- Service-scoped commands: `airbnb`, `booking`, `google-flights`, `instagram`, `tiktok`, `twitch`, `twitter`, `zillow`
+- Service-scoped commands: `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`
 - `tiktok-profile`
 - `tiktok-videos`
 - `twitter-profile`
