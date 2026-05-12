@@ -26,7 +26,7 @@
     "@clack/prompts": "^1.2.0",
     "axios": "^1.15.0",
     "commander": "^13.1.0",
-    "x402-stacks": "^1.1.1",
+    "x402-stacks": "^2.0.3",
     "zod": "^4.3.6"
   },
   "devDependencies": {
