@@ -96,7 +96,7 @@ describe('wallet command — json mode', () => {
       STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
     })
 
-    expect(result.stdout).not.toContain('agent-first command line')
+    expect(result.stdout).not.toContain('AgentSats command line')
   })
 })
 
@@ -109,7 +109,7 @@ describe('wallet command — plain mode', () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toBe('')
-    expect(result.stdout).not.toContain('agent-first command line')
+    expect(result.stdout).not.toContain('AgentSats command line')
     expect(result.stdout).toContain('network: mainnet')
     expect(result.stdout).toMatch(/address: SP[0-9A-Z]+/)
     expect(result.stdout).toContain('timestamp: 2026-04-16T00:00:00.000Z')
@@ -123,6 +123,6 @@ describe('wallet command — human mode', () => {
     })
 
     expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain('agent-first command line')
+    expect(result.stdout).toContain('AgentSats command line')
   })
 })

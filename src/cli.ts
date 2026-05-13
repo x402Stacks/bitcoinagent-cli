@@ -1,8 +1,6 @@
 import { Command, CommanderError } from 'commander'
 
 import { registerApiCommands } from './commands/api.js'
-import { registerRunCommand } from './commands/run.js'
-import { registerStatusCommand } from './commands/status.js'
 import { registerWalletCommand } from './commands/wallet.js'
 import { registerCompletionSupport } from './completions/tab.js'
 import { ValidationError } from './core/errors.js'
@@ -32,8 +30,8 @@ function createProgram(runtime: ResolvedRuntime) {
   const program = new Command()
 
   program
-    .name('agent-cli')
-    .description('Agent-first CLI starter with explicit output modes')
+    .name('agentsats')
+    .description('AgentSats CLI for Bitcoin-paid agent workflows')
     .version('0.1.0')
     .exitOverride()
     .configureOutput({
@@ -43,8 +41,6 @@ function createProgram(runtime: ResolvedRuntime) {
       writeErr: () => {},
     })
 
-  registerRunCommand(program, runtime)
-  registerStatusCommand(program, runtime)
   registerWalletCommand(program, runtime)
   registerApiCommands(program, runtime)
   registerCompletionSupport(program)
@@ -86,7 +82,7 @@ export async function runCli(argv: string[], options: RuntimeOptions = {}) {
   const program = createProgram(runtime)
 
   try {
-    await program.parseAsync(['node', 'agent-cli', ...argv], { from: 'node' })
+    await program.parseAsync(['node', 'agentsats', ...argv], { from: 'node' })
     return runtime.exitCode
   } catch (error) {
     if (isSuccessfulHelpExit(error)) {

@@ -1,10 +1,10 @@
 {
-  "name": "agent-cli",
+  "name": "agentsats",
   "version": "0.1.0",
-  "description": "Agent-first TypeScript CLI starter with human and machine-safe output modes.",
+  "description": "AgentSats CLI for Bitcoin-paid agent workflows with human and machine-safe output modes.",
   "type": "module",
   "bin": {
-    "agent-cli": "./dist/index.js"
+    "agentsats": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -15,7 +15,9 @@
   },
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "pnpm clean && tsc -p tsconfig.json",
+    "prepack": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "echo \"Lint not configured yet\"",

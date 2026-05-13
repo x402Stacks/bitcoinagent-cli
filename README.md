@@ -1,6 +1,6 @@
-# agent-cli
+# AgentSats
 
-Production-ready TypeScript starter for an agent-first CLI with explicit human, plain, and JSON output modes.
+AgentSats is a TypeScript ESM CLI for Bitcoin-paid agent workflows. It exposes explicit human, plain, and JSON output modes so the same commands work interactively for humans and deterministically for machines.
 
 ## Stack
 
@@ -13,18 +13,25 @@ Production-ready TypeScript starter for an agent-first CLI with explicit human, 
 - tsx
 - Vitest
 
-## Install
+## Use With npx
+
+```bash
+npx agentsats --help
+npx agentsats services --json
+```
+
+## Local Development
 
 ```bash
 pnpm install
+pnpm dev --help
 ```
 
 ## Run In Human Mode
 
 ```bash
-pnpm exec tsx src/index.ts run --task "draft incident report"
-pnpm exec tsx src/index.ts status --id task_draft_incident_report
-pnpm exec tsx src/index.ts services
+npx agentsats health
+npx agentsats services
 ```
 
 Human mode is the default. It uses Clack spinners plus readable summaries.
@@ -32,9 +39,8 @@ Human mode is the default. It uses Clack spinners plus readable summaries.
 ## Run In Plain Mode
 
 ```bash
-pnpm exec tsx src/index.ts run --task "draft incident report" --plain
-pnpm exec tsx src/index.ts status --id task_draft_incident_report --plain
-pnpm exec tsx src/index.ts tiktok-profile --username creator_1 --plain
+npx agentsats services --plain
+npx agentsats tiktok-profile --username creator_1 --plain
 ```
 
 Plain mode is minimal readable text with no spinner and no extra decoration.
@@ -42,9 +48,9 @@ Plain mode is minimal readable text with no spinner and no extra decoration.
 ## Run In JSON Mode
 
 ```bash
-pnpm exec tsx src/index.ts run --task "draft incident report" --json
-pnpm exec tsx src/index.ts status --id task_draft_incident_report --json
-pnpm exec tsx src/index.ts twitter-tweets --user-id 2455740283 --count 20 --json
+npx agentsats services --json
+npx agentsats service-endpoints --service twitter --json
+npx agentsats twitter-tweets --user-id 2455740283 --count 20 --json
 ```
 
 JSON mode is automation-safe:
@@ -71,16 +77,16 @@ set +a
 Set `STACKS_PRIVATE_KEY` to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
 
 ```bash
-pnpm exec tsx src/index.ts health --json
-pnpm exec tsx src/index.ts services --json
-pnpm exec tsx src/index.ts service-endpoints --service twitter --json
-pnpm exec tsx src/index.ts service-endpoints --service linkedin --json
-pnpm exec tsx src/index.ts tiktok-profile --username creator_1 --json
-pnpm exec tsx src/index.ts tiktok-videos --sec-uid MS4wLjABAAAA_fake_sec_uid --count 20 --json
-pnpm exec tsx src/index.ts twitter-profile --username MrBeast --json
-pnpm exec tsx src/index.ts twitter-highlights --user-id 877807935493033984 --count 20 --json
-pnpm exec tsx src/index.ts twitter-tweets --user-id 2455740283 --count 20 --json
-pnpm exec tsx src/index.ts twitter-followings --user-id 2455740283 --count 20 --json
+npx agentsats health --json
+npx agentsats services --json
+npx agentsats service-endpoints --service twitter --json
+npx agentsats service-endpoints --service linkedin --json
+npx agentsats tiktok-profile --username creator_1 --json
+npx agentsats tiktok-videos --sec-uid MS4wLjABAAAA_fake_sec_uid --count 20 --json
+npx agentsats twitter-profile --username MrBeast --json
+npx agentsats twitter-highlights --user-id 877807935493033984 --count 20 --json
+npx agentsats twitter-tweets --user-id 2455740283 --count 20 --json
+npx agentsats twitter-followings --user-id 2455740283 --count 20 --json
 ```
 
 `tiktok-profile` maps to the API23 `GET /api/v1/tiktok/user/info` route with `uniqueId=<username>`. `tiktok-videos` maps to `GET /api/v1/tiktok/user/posts`, which requires `--sec-uid`.
@@ -88,23 +94,23 @@ pnpm exec tsx src/index.ts twitter-followings --user-id 2455740283 --count 20 --
 For the expanded endpoint surface, use either a service command with a relative path or the full-path generic endpoint caller. Service commands are available for `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, and `zillow`.
 
 ```bash
-pnpm exec tsx src/index.ts airbnb \
+npx agentsats airbnb \
   --endpoint stays/search \
   --query placeId=ChIJVTPokywQkFQRmtVEaUZlJRA \
   --json
 
-pnpm exec tsx src/index.ts google-flights \
+npx agentsats google-flights \
   --endpoint booking/url \
   --method POST \
   --body-json '{"token":"booking-token"}' \
   --json
 
-pnpm exec tsx src/index.ts linkedin \
+npx agentsats linkedin \
   --endpoint get-company-by-domain \
   --query domain=apple.com \
   --json
 
-pnpm exec tsx src/index.ts linkedin \
+npx agentsats linkedin \
   --endpoint search-posts \
   --method POST \
   --body-json '{"search_keywords":"ai","page":1}' \
@@ -114,13 +120,13 @@ pnpm exec tsx src/index.ts linkedin \
 The generic caller accepts the complete endpoint path:
 
 ```bash
-pnpm exec tsx src/index.ts api-call \
+npx agentsats api-call \
   --method GET \
   --path /api/v1/airbnb/stays/search \
   --query placeId=ChIJVTPokywQkFQRmtVEaUZlJRA \
   --json
 
-pnpm exec tsx src/index.ts api-call \
+npx agentsats api-call \
   --method POST \
   --path /api/v1/google-flights/booking/url \
   --body-json '{"token":"booking-token"}' \
@@ -140,7 +146,7 @@ pnpm typecheck
 
 ```bash
 pnpm build
-node dist/index.js run --task "draft incident report"
+node dist/index.js services --json
 ```
 
 ## Shell Completions
@@ -151,31 +157,31 @@ Generate a completion script:
 
 ```bash
 pnpm build
-node dist/index.js complete zsh > ~/.agent-cli-completion.zsh
-node dist/index.js complete bash > ~/.agent-cli-completion.bash
+node dist/index.js complete zsh > ~/.agentsats-completion.zsh
+node dist/index.js complete bash > ~/.agentsats-completion.bash
 ```
 
 Install it in your shell startup file:
 
 ```bash
-echo 'source ~/.agent-cli-completion.zsh' >> ~/.zshrc
+echo 'source ~/.agentsats-completion.zsh' >> ~/.zshrc
 source ~/.zshrc
 ```
 
 You can also call the command directly:
 
 ```bash
-pnpm exec tsx src/index.ts complete zsh > ~/.agent-cli-completion.zsh
-pnpm --silent completions:generate zsh > ~/.agent-cli-completion.zsh
+npx agentsats complete zsh > ~/.agentsats-completion.zsh
+pnpm --silent completions:generate zsh > ~/.agentsats-completion.zsh
 ```
 
 If the package is installed globally or linked into your shell `PATH`, this also works:
 
 ```bash
-agent-cli complete zsh > ~/.agent-cli-completion.zsh
+agentsats complete zsh > ~/.agentsats-completion.zsh
 ```
 
-## Why This Structure Works Well For Agent-First CLIs
+## Why This Structure Works Well For AgentSats
 
 - `commands/` stays thin and focused on parsing plus delegation
 - `services/` keeps business behavior independent from terminal rendering

@@ -23,7 +23,7 @@
 - Functions: `camelCase` (e.g., `resolveOutputMode`, `createCommandContext`).
 - Constants: `UPPER_SNAKE_CASE` for true constants (e.g., `HUMAN_BANNER`), `camelCase` for function-scoped values.
 - Types/Interfaces: `PascalCase` (e.g., `OutputMode`, `CommandContext`, `CliResponse`).
-- Command registration functions: `registerXxxCommand` (e.g., `registerRunCommand`).
+- Command registration functions: `registerXxxCommand` (e.g., `registerWalletCommand`).
 
 ## File Organization
 

@@ -3,14 +3,12 @@
 ## Directory Structure
 
 ```
-agent-cli/
+agentsats/
 ├── src/
 │   ├── index.ts              # Entrypoint — calls runCli(), sets process.exitCode
 │   ├── cli.ts                # Program factory, runtime resolution, error/help handling
 │   ├── commands/
 │   │   ├── api.ts            # bitcoinagent API endpoint commands
-│   │   ├── run.ts            # run command — Zod schema + handler + registration
-│   │   ├── status.ts        # status command — Zod schema + handler + registration
 │   │   └── wallet.ts        # wallet command — Stacks address derivation
 │   ├── completions/
 │   │   └── tab.ts            # @bomb.sh/tab integration (registers `complete` subcommand)
@@ -24,14 +22,13 @@ agent-cli/
 │   │   ├── agent.ts          # JSON helpers: createSuccessResponse, createErrorResponse, renderJson*
 │   │   └── human.ts          # Human/plain renderers + ASCII banner (human-only)
 │   ├── services/
-│   │   ├── agent-service.ts  # Deterministic fake business logic
 │   │   ├── bitcoinagent-api.ts # HTTP client for bitcoinagent API endpoints
 │   │   ├── stacks-client.ts  # x402-stacks client factory
 │   │   └── wallet-service.ts # Stacks wallet derivation
 │   ├── types/
 │   │   ├── output.ts         # OutputMode, CliErrorPayload, CliResponse<T>
 │   │   ├── context.ts        # Writer, RuntimeOptions, TerminalInfo, CommandContext
-│   │   └── commands.ts       # Run/Status command option and result types
+│   │   └── commands.ts       # Wallet/API command option and result types
 │   └── utils/
 │       ├── json.ts           # safeJsonStringify, writeJson
 │       ├── mode.ts           # resolveOutputMode (json > plain > human)
@@ -59,9 +56,9 @@ index.ts
         ├── [json + help guard]              → returns VALIDATION_ERROR if --json --help
         ├── createProgram(runtime)           → Commander program with all commands registered
         └── program.parseAsync(argv)         → Commander dispatches to command handler
-              └── handleRun / handleStatus
+              └── handleWallet / handleApiCommand
                     ├── Zod validation of options
-                    ├── Service call (runAgentTask / getAgentTaskStatus)
+                    ├── Service call (wallet derivation or bitcoinagent API)
                     ├── Mode-based rendering:
                     │     json  → renderJsonSuccess / renderJsonError
                     │     plain → renderPlainBlock
@@ -107,14 +104,6 @@ Central orchestrator. Responsibilities:
 - `runCli()` — main entry: resolves runtime, guards json+help, runs program, catches and normalizes errors
 - `createCli()` — exposed for testing (creates program without running it)
 
-### `src/commands/run.ts` & `src/commands/status.ts`
-
-Thin command modules. Each:
-- Defines a Zod schema for its input
-- Provides `getRawFlags()` to extract json/plain/nonInteractive flags from Commander options
-- Implements `handleRun/handleStatus()` with try/catch → normalize → render → exit code
-- Exports `registerRunCommand/registerStatusCommand()` to attach to the Commander program
-
 ### `src/output/agent.ts`
 
 JSON response factory:
@@ -128,8 +117,8 @@ JSON response factory:
 Human/plain rendering:
 - `HUMAN_BANNER` — ASCII art logo string, rendered only in human mode
 - `renderBanner(context)` — writes banner to stdout via toNodeWritable
-- `renderRunResult(context, result)` — plain mode: key-value lines; human mode: banner + spinner + note
-- `renderStatusResult(context, result)` — plain mode: key-value lines; human mode: banner + log + note
+- `renderWalletResult(context, result)` — plain mode: key-value lines; human mode: banner + wallet note
+- `renderApiEndpointResult(context, result)` — plain mode: key-value lines; human mode: banner + API note
 - `renderFriendlyError(context, error)` — plain mode: logger error; human mode: Clack log.error + note for details
 
 ### `src/commands/api.ts`
@@ -158,16 +147,6 @@ HTTP client for the Go API. It:
 - Preserves `/health` as an unenveloped response
 - Maps API errors to CLI errors
 - Decodes base64 JSON `payment-required` headers into `PAYMENT_REQUIRED` details
-
-### `src/services/agent-service.ts`
-
-Deterministic fake business logic:
-- `toTaskId(value)` — normalizes task string to `task_<slug>` format
-- `runAgentTask(task, timestamp)` → RunCommandResult (always status: 'completed')
-- `getDerivedStatus(taskId)` — derives state from task ID suffix (`_queued`, `_running`, else `completed`)
-- `getAgentTaskStatus(id, timestamp)` → StatusCommandResult
-  - `id === 'explode'` → throws Error (for testing INTERNAL_ERROR)
-  - `id === 'missing'` → throws NotFoundError (for testing NOT_FOUND)
 
 ### `src/core/errors.ts`
 

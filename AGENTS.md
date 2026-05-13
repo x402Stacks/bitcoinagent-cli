@@ -4,20 +4,20 @@ Instructions for AI agents working on this codebase.
 
 ## Project Overview
 
-`agent-cli` is a production-ready TypeScript ESM CLI starter designed for agent-first workflows. It provides three explicit output modes — **human**, **plain**, and **json** — so the same commands work interactively for humans and deterministically for machines.
+`agentsats` (AgentSats) is a production-ready TypeScript ESM CLI for Bitcoin-paid agent workflows. It provides three explicit output modes — **human**, **plain**, and **json** — so the same commands work interactively for humans and deterministically for machines.
 
-- **Package**: `agent-cli` (v0.1.0)
+- **Package**: `agentsats` (v0.1.0)
 - **Runtime**: Node.js >= 20.10.0
 - **Module**: ESM only (`"type": "module"`)
 - **Language**: TypeScript (strict)
 - **Package manager**: pnpm 10.18.3
-- **Repo**: https://github.com/x402Stacks/bitcoinagent-cli
+- **Repo**: https://github.com/x402Stacks/agentsats
 
 ## Commands
 
 ```bash
 pnpm install          # install dependencies
-pnpm dev ...          # run via tsx (e.g. pnpm dev run --task "x")
+pnpm dev ...          # run via tsx (e.g. pnpm dev services --json)
 pnpm build            # tsc compile to dist/
 pnpm test             # vitest run
 pnpm typecheck        # tsc --noEmit
@@ -33,8 +33,6 @@ src/
 ├── cli.ts                # program creation, runtime wiring, help/JSON-help handling
 ├── commands/
 │   ├── api.ts            # bitcoinagent API endpoint commands
-│   ├── run.ts            # run command (registration + validation + execution)
-│   ├── status.ts        # status command
 │   └── wallet.ts        # Stacks wallet command
 ├── completions/
 │   └── tab.ts            # @bomb.sh/tab shell completion integration
@@ -48,14 +46,13 @@ src/
 │   ├── agent.ts          # structured JSON response helpers (createSuccessResponse, createErrorResponse)
 │   └── human.ts          # human/plain renderers + ASCII banner (human-only)
 ├── services/
-│   ├── agent-service.ts  # deterministic fake business logic
 │   ├── bitcoinagent-api.ts # HTTP client for Go bitcoinagent endpoints
 │   ├── stacks-client.ts  # x402-stacks payment client factory
 │   └── wallet-service.ts # Stacks wallet derivation
 ├── types/
 │   ├── output.ts         # OutputMode, CliResponse<T>
 │   ├── context.ts        # Writer, RuntimeOptions, TerminalInfo, CommandContext
-│   └── commands.ts       # Run/Status command input/result types
+│   └── commands.ts       # Wallet/API command result types
 └── utils/
     ├── json.ts           # safeJsonStringify, writeJson
     ├── mode.ts           # resolveOutputMode (json > plain > human)
@@ -71,7 +68,7 @@ src/
 5. **Logger suppression**: `core/logger.ts` returns no-op methods when mode is `json`. Use the logger, never `console.log`.
 6. **Banner**: ASCII logo banner appears in human mode only. Plain and json modes must never emit it.
 7. **Help safety**: `--json --help` returns a JSON validation error (code `VALIDATION_ERROR`). Help without `--json` exits cleanly with code 0.
-8. **API endpoint commands**: endpoint commands call `BITCOINAGENT_API_URL` or `http://localhost:8080`, support `--api-url`, and return decoded x402 `payment-required` challenge metadata as `PAYMENT_REQUIRED`. Use service-scoped commands (`airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`) or `api-call` for full expanded API coverage, including newer GET/POST endpoints discovered through `service-endpoints`.
+8. **API endpoint commands**: endpoint commands call `BITCOINAGENT_API_URL` or `http://localhost:8082`, support `--api-url`, and return decoded x402 `payment-required` challenge metadata as `PAYMENT_REQUIRED`. Use service-scoped commands (`airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`) or `api-call` for full expanded API coverage, including newer GET/POST endpoints discovered through `service-endpoints`.
 
 ## Dependencies
 
