@@ -21,8 +21,8 @@ importers:
         specifier: ^13.1.0
         version: 13.1.0
       x402-stacks:
-        specifier: ^1.1.1
-        version: 1.1.1
+        specifier: ^2.0.3
+        version: 2.0.3
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -409,6 +409,9 @@ packages:
 
   axios@1.15.0:
     resolution: {integrity: sha512-wWyJDlAatxk30ZJer+GeCWS209sA42X+N5jU2jy6oHTp7ufw8uzUTVFBX9+wTfAlhiJXGS0Bq7X6efruWjuK9Q==}
+
+  axios@1.15.2:
+    resolution: {integrity: sha512-wLrXxPtcrPTsNlJmKjkPnNPK2Ihe0hn0wGSaTEiHRPxwjvJwT3hKmXF4dpqxmPO9SoNb2FsYXj/xEo0gHN+D5A==}
 
   base-x@4.0.1:
     resolution: {integrity: sha512-uAZ8x6r6S3aUM9rbHGVOIsR15U/ZSc82b3ymnCPsT45Gk1DDvhDPdIgB5MrhirZWt+5K0EEPQH985kNqZgNPFw==}
@@ -827,8 +830,8 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
-  x402-stacks@1.1.1:
-    resolution: {integrity: sha512-wMWrU8EZjDCoq5LsPVQdD/HNm2bq0aNHySBkK56qeuHlV/BtMxay4oQ9W+GuWBIeEeCXqRsdeWltwj7cvF3k0A==}
+  x402-stacks@2.0.3:
+    resolution: {integrity: sha512-45D5w+xSSFJwk8kqSQYNvYdGVCns22G8EnXwi04nNoRcENgv++z3CnAp/GOBNifvbAmGcu1D4/KW00+rkjjwtA==}
     peerDependencies:
       express: ^4.18.0
     peerDependenciesMeta:
@@ -1113,6 +1116,14 @@ snapshots:
   asynckit@0.4.0: {}
 
   axios@1.15.0:
+    dependencies:
+      follow-redirects: 1.16.0
+      form-data: 4.0.5
+      proxy-from-env: 2.1.0
+    transitivePeerDependencies:
+      - debug
+
+  axios@1.15.2:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.5
@@ -1472,11 +1483,11 @@ snapshots:
       siginfo: 2.0.0
       stackback: 0.0.2
 
-  x402-stacks@1.1.1:
+  x402-stacks@2.0.3:
     dependencies:
       '@stacks/network': 6.17.0
       '@stacks/transactions': 6.17.0
-      axios: 1.15.0
+      axios: 1.15.2
     transitivePeerDependencies:
       - debug
       - encoding

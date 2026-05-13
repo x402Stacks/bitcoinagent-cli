@@ -29,7 +29,7 @@ type CliResponse<T> = {
 - On failure: `error` is present, `data` is absent.
 - `meta.timestamp` is an ISO 8601 string.
 - `meta.mode` is always `"json"` when emitted from JSON-mode rendering.
-- `error.code` is one of: `"VALIDATION_ERROR"`, `"NOT_FOUND"`, `"INTERNAL_ERROR"`.
+- `error.code` is one of: `"VALIDATION_ERROR"`, `"NOT_FOUND"`, `"PAYMENT_REQUIRED"`, `"INTERNAL_ERROR"`.
 - `error.details` is optional and only present when the original error provides it.
 
 ---
@@ -180,6 +180,31 @@ type CliResponse<T> = {
 }
 ```
 
+### Payment required (`twitter-profile --username MrBeast --json`)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "PAYMENT_REQUIRED",
+    "message": "Payment is required for this endpoint.",
+    "details": {
+      "statusCode": 402,
+      "endpoint": "/api/v1/twitter/profile",
+      "paymentRequired": {
+        "accepts": [
+          { "scheme": "exact", "network": "stacks:2147483648", "asset": "STX", "amount": "1000" }
+        ]
+      }
+    }
+  },
+  "meta": {
+    "timestamp": "2026-04-16T00:00:00.000Z",
+    "mode": "json"
+  }
+}
+```
+
 ---
 
 ## Data Types
@@ -213,7 +238,7 @@ type CliResponse<T> = {
 
 ```typescript
 {
-  code: 'VALIDATION_ERROR' | 'NOT_FOUND' | 'INTERNAL_ERROR'
+  code: 'VALIDATION_ERROR' | 'NOT_FOUND' | 'PAYMENT_REQUIRED' | 'INTERNAL_ERROR'
   message: string
   details?: unknown         // Zod flattened errors, error cause, etc.
 }

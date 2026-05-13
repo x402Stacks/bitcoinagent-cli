@@ -1,5 +1,6 @@
 import { Command, CommanderError } from 'commander'
 
+import { registerApiCommands } from './commands/api.js'
 import { registerRunCommand } from './commands/run.js'
 import { registerStatusCommand } from './commands/status.js'
 import { registerWalletCommand } from './commands/wallet.js'
@@ -45,6 +46,7 @@ function createProgram(runtime: ResolvedRuntime) {
   registerRunCommand(program, runtime)
   registerStatusCommand(program, runtime)
   registerWalletCommand(program, runtime)
+  registerApiCommands(program, runtime)
   registerCompletionSupport(program)
 
   return program

@@ -8,11 +8,14 @@ agent-cli/
 │   ├── index.ts              # Entrypoint — calls runCli(), sets process.exitCode
 │   ├── cli.ts                # Program factory, runtime resolution, error/help handling
 │   ├── commands/
+│   │   ├── api.ts            # bitcoinagent API endpoint commands
 │   │   ├── run.ts            # run command — Zod schema + handler + registration
-│   │   └── status.ts        # status command — Zod schema + handler + registration
+│   │   ├── status.ts        # status command — Zod schema + handler + registration
+│   │   └── wallet.ts        # wallet command — Stacks address derivation
 │   ├── completions/
 │   │   └── tab.ts            # @bomb.sh/tab integration (registers `complete` subcommand)
 │   ├── core/
+│   │   ├── api-config.ts     # bitcoinagent API base URL resolution
 │   │   ├── errors.ts         # CliError hierarchy + normalizeError()
 │   │   ├── exit.ts           # getExitCode() — maps error codes to exit codes
 │   │   ├── logger.ts         # Logger factory — no-op in json mode
@@ -21,7 +24,10 @@ agent-cli/
 │   │   ├── agent.ts          # JSON helpers: createSuccessResponse, createErrorResponse, renderJson*
 │   │   └── human.ts          # Human/plain renderers + ASCII banner (human-only)
 │   ├── services/
-│   │   └── agent-service.ts  # Deterministic fake business logic
+│   │   ├── agent-service.ts  # Deterministic fake business logic
+│   │   ├── bitcoinagent-api.ts # HTTP client for bitcoinagent API endpoints
+│   │   ├── stacks-client.ts  # x402-stacks client factory
+│   │   └── wallet-service.ts # Stacks wallet derivation
 │   ├── types/
 │   │   ├── output.ts         # OutputMode, CliErrorPayload, CliResponse<T>
 │   │   ├── context.ts        # Writer, RuntimeOptions, TerminalInfo, CommandContext
@@ -125,6 +131,33 @@ Human/plain rendering:
 - `renderRunResult(context, result)` — plain mode: key-value lines; human mode: banner + spinner + note
 - `renderStatusResult(context, result)` — plain mode: key-value lines; human mode: banner + log + note
 - `renderFriendlyError(context, error)` — plain mode: logger error; human mode: Clack log.error + note for details
+
+### `src/commands/api.ts`
+
+Registers all HTTP endpoint commands for the Go `bitcoinagent` API:
+- `health`
+- `services`
+- `service-endpoints`
+- `api-call`
+- Service-scoped commands: `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`
+- `tiktok-profile`
+- `tiktok-videos`
+- `twitter-profile`
+- `twitter-highlights`
+- `twitter-tweets`
+- `twitter-followings`
+
+Each command supports `--api-url`, `--json`, and `--plain`. Commands validate flags with Zod, resolve the API base URL through `readBitcoinAgentApiConfig()`, delegate HTTP work to `services/bitcoinagent-api.ts`, and render through shared output helpers. Service-scoped commands and `api-call` cover the expanded API surface; they support `GET`, `POST`, repeated `--query key=value`, and `--body-json`.
+
+### `src/services/bitcoinagent-api.ts`
+
+HTTP client for the Go API. It:
+- Builds `GET` and `POST` requests from the configured base URL
+- Unwraps API success envelopes into `ApiEndpointResult.response`
+- Copies `meta.provider` into `ApiEndpointResult.provider`
+- Preserves `/health` as an unenveloped response
+- Maps API errors to CLI errors
+- Decodes base64 JSON `payment-required` headers into `PAYMENT_REQUIRED` details
 
 ### `src/services/agent-service.ts`
 
