@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
 
+const TEST_PRIVATE_KEY =
+  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+
 function createMemoryWriter() {
   let value = ''
 
@@ -16,7 +19,7 @@ function createMemoryWriter() {
   }
 }
 
-async function execute(argv: string[]) {
+async function execute(argv: string[], env: NodeJS.ProcessEnv = {}) {
   const stdout = createMemoryWriter()
   const stderr = createMemoryWriter()
 
@@ -24,6 +27,7 @@ async function execute(argv: string[]) {
     stdout,
     stderr,
     now: () => '2026-04-16T00:00:00.000Z',
+    env,
   })
 
   return {
@@ -34,31 +38,21 @@ async function execute(argv: string[]) {
 }
 
 describe('human banner', () => {
-  it('renders the banner in human run output', async () => {
-    const result = await execute(['run', '--task', 'draft plan'])
+  it('renders the banner in human wallet output', async () => {
+    const result = await execute(['wallet'], {
+      STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+    })
 
     expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain('agent-first command line')
+    expect(result.stdout).toContain('AgentSats command line')
   })
 
   it('does not render the banner in plain mode', async () => {
-    const result = await execute(['run', '--task', 'draft plan', '--plain'])
+    const result = await execute(['wallet', '--plain'], {
+      STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+    })
 
     expect(result.exitCode).toBe(0)
-    expect(result.stdout).not.toContain('agent-first command line')
-  })
-
-  it('does not render the banner in plain status mode', async () => {
-    const result = await execute(['status', '--id', 'task_draft_plan', '--plain'])
-
-    expect(result.exitCode).toBe(0)
-    expect(result.stdout).not.toContain('agent-first command line')
-  })
-
-  it('renders the banner in human status output', async () => {
-    const result = await execute(['status', '--id', 'task_draft_plan'])
-
-    expect(result.exitCode).toBe(0)
-    expect(result.stdout).toContain('agent-first command line')
+    expect(result.stdout).not.toContain('AgentSats command line')
   })
 })

@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
 
+const TEST_PRIVATE_KEY =
+  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+
 function createMemoryWriter() {
   let value = ''
 
@@ -16,7 +19,7 @@ function createMemoryWriter() {
   }
 }
 
-async function execute(argv: string[]) {
+async function execute(argv: string[], env: NodeJS.ProcessEnv = {}) {
   const stdout = createMemoryWriter()
   const stderr = createMemoryWriter()
 
@@ -24,6 +27,7 @@ async function execute(argv: string[]) {
     stdout,
     stderr,
     now: () => '2026-04-16T00:00:00.000Z',
+    env,
   })
 
   return {
@@ -39,19 +43,21 @@ describe('json mode', () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toBe('')
-    expect(result.stdout).toContain('Usage: agent-cli')
+    expect(result.stdout).toContain('Usage: agentsats')
+    expect(result.stdout).not.toContain('run [options]')
+    expect(result.stdout).not.toContain('status [options]')
   })
 
   it('treats the explicit help command as a success path', async () => {
-    const result = await execute(['help', 'run'])
+    const result = await execute(['help', 'wallet'])
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toBe('')
-    expect(result.stdout).toContain('Usage: agent-cli run')
+    expect(result.stdout).toContain('Usage: agentsats wallet')
   })
 
   it('keeps help requests machine-safe in json mode', async () => {
-    const result = await execute(['run', '--json', '--help'])
+    const result = await execute(['wallet', '--json', '--help'])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(1)
@@ -60,59 +66,56 @@ describe('json mode', () => {
     expect(payload.error.code).toBe('VALIDATION_ERROR')
   })
 
-  it('returns structured json for run', async () => {
-    const result = await execute(['run', '--task', 'draft plan', '--json'])
+  it('returns structured json for wallet', async () => {
+    const result = await execute(['wallet', '--json'], {
+      STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+    })
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toBe('')
     expect(payload.success).toBe(true)
-    expect(payload.data.taskId).toBe('task_draft_plan')
-    expect(payload.data.task).toBe('draft plan')
-    expect(payload.data.steps).toEqual([
-      'validate input',
-      'plan work',
-      'report completion',
-    ])
+    expect(payload.data.address).toMatch(/^ST[0-9A-Z]+$/)
     expect(payload.meta.mode).toBe('json')
   })
 
-  it('returns structured json for status', async () => {
-    const result = await execute(['status', '--id', 'task_draft_plan', '--json'])
+  it('returns removed run command as structured json validation error', async () => {
+    const result = await execute(['run', '--task', 'draft plan', '--json'])
     const payload = JSON.parse(result.stdout)
 
-    expect(result.exitCode).toBe(0)
+    expect(result.exitCode).toBe(1)
     expect(result.stderr).toBe('')
-    expect(payload.success).toBe(true)
-    expect(payload.data.taskId).toBe('task_draft_plan')
-    expect(payload.data.status).toBe('completed')
+    expect(payload.success).toBe(false)
+    expect(payload.error.code).toBe('VALIDATION_ERROR')
+    expect(payload.error.message).toContain("unknown command 'run'")
     expect(payload.meta.mode).toBe('json')
     expect(result.stdout.trim().split('\n')).toHaveLength(1)
   })
 
-  it('returns validation failures as structured json', async () => {
-    const result = await execute(['run', '--task', '   ', '--json'])
+  it('returns removed status command as structured json validation error', async () => {
+    const result = await execute(['status', '--id', 'task_draft_plan', '--json'])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(1)
     expect(result.stderr).toBe('')
     expect(payload.success).toBe(false)
     expect(payload.error.code).toBe('VALIDATION_ERROR')
+    expect(payload.error.message).toContain("unknown command 'status'")
   })
 
-  it('returns missing required flags as structured json', async () => {
-    const result = await execute(['run', '--json'])
+  it('returns validation failures as structured json', async () => {
+    const result = await execute(['wallet', '--json'])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(1)
     expect(result.stderr).toBe('')
     expect(payload.success).toBe(false)
     expect(payload.error.code).toBe('VALIDATION_ERROR')
-    expect(payload.error.message).toContain("required option '--task <string>'")
+    expect(payload.error.message).toContain('STACKS_PRIVATE_KEY')
   })
 
   it('returns internal failures as structured json', async () => {
-    const result = await execute(['status', '--id', 'explode', '--json'])
+    const result = await execute(['services', '--api-url', 'http://127.0.0.1:1', '--json'])
     const payload = JSON.parse(result.stdout)
 
     expect(result.exitCode).toBe(1)
@@ -122,21 +125,19 @@ describe('json mode', () => {
   })
 
   it('emits no extra logs in json mode', async () => {
-    const result = await execute(['run', '--task', 'draft plan', '--json'])
+    const result = await execute(['wallet', '--json'], {
+      STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+    })
 
     expect(result.stdout.trim().split('\n')).toHaveLength(1)
     expect(result.stderr).toBe('')
   })
 
   it('keeps json output free of banner text', async () => {
-    const result = await execute(['run', '--task', 'draft plan', '--json'])
+    const result = await execute(['wallet', '--json'], {
+      STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+    })
 
-    expect(result.stdout).not.toContain('agent-first command line')
-  })
-
-  it('keeps status json output free of banner text', async () => {
-    const result = await execute(['status', '--id', 'task_draft_plan', '--json'])
-
-    expect(result.stdout).not.toContain('agent-first command line')
+    expect(result.stdout).not.toContain('AgentSats command line')
   })
 })

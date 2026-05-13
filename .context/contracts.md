@@ -36,17 +36,17 @@ type CliResponse<T> = {
 
 ## Success Examples
 
-### `run --task "draft plan" --json`
+### `health --json`
 
 ```json
 {
   "success": true,
   "data": {
-    "taskId": "task_draft_plan",
-    "task": "draft plan",
-    "status": "completed",
-    "summary": "Completed fake agent task: draft plan",
-    "steps": ["validate input", "plan work", "report completion"],
+    "method": "GET",
+    "endpoint": "/health",
+    "url": "http://localhost:8082/health",
+    "statusCode": 200,
+    "response": { "status": "ok" },
     "timestamp": "2026-04-16T00:00:00.000Z"
   },
   "meta": {
@@ -56,35 +56,14 @@ type CliResponse<T> = {
 }
 ```
 
-### `status --id "task_draft_plan" --json`
+### `wallet --json`
 
 ```json
 {
   "success": true,
   "data": {
-    "taskId": "task_draft_plan",
-    "status": "completed",
-    "progress": 100,
-    "summary": "Task task_draft_plan is completed.",
-    "timestamp": "2026-04-16T00:00:00.000Z"
-  },
-  "meta": {
-    "timestamp": "2026-04-16T00:00:00.000Z",
-    "mode": "json"
-  }
-}
-```
-
-### `status --id "task_build_running" --json`
-
-```json
-{
-  "success": true,
-  "data": {
-    "taskId": "task_build_running",
-    "status": "running",
-    "progress": 55,
-    "summary": "Task task_build_running is running.",
+    "address": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+    "network": "testnet",
     "timestamp": "2026-04-16T00:00:00.000Z"
   },
   "meta": {
@@ -98,14 +77,14 @@ type CliResponse<T> = {
 
 ## Error Examples
 
-### Validation error (missing `--task`)
+### Validation error (removed `run` command)
 
 ```json
 {
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "required option '--task <string>' not specified"
+    "message": "error: unknown command 'run'"
   },
   "meta": {
     "timestamp": "2026-04-16T00:00:00.000Z",
@@ -114,15 +93,14 @@ type CliResponse<T> = {
 }
 ```
 
-### Validation error (blank `--task`)
+### Validation error (missing `STACKS_PRIVATE_KEY`)
 
 ```json
 {
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Invalid command input.",
-    "details": { "fieldErrors": { "task": { "0": { "code": "too_small", "message": "Task is required." } } } }
+    "message": "STACKS_PRIVATE_KEY environment variable is required."
   },
   "meta": {
     "timestamp": "2026-04-16T00:00:00.000Z",
@@ -139,39 +117,6 @@ type CliResponse<T> = {
   "error": {
     "code": "VALIDATION_ERROR",
     "message": "Help output is not available with --json. Use --plain or omit --json."
-  },
-  "meta": {
-    "timestamp": "2026-04-16T00:00:00.000Z",
-    "mode": "json"
-  }
-}
-```
-
-### Not found error (`status --id missing --json`)
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Task 'missing' was not found."
-  },
-  "meta": {
-    "timestamp": "2026-04-16T00:00:00.000Z",
-    "mode": "json"
-  }
-}
-```
-
-### Internal error (`status --id explode --json`)
-
-```json
-{
-  "success": false,
-  "error": {
-    "code": "INTERNAL_ERROR",
-    "message": "An unexpected error occurred.",
-    "details": { "cause": "Synthetic failure for tests" }
   },
   "meta": {
     "timestamp": "2026-04-16T00:00:00.000Z",
@@ -209,28 +154,28 @@ type CliResponse<T> = {
 
 ## Data Types
 
-### `RunCommandResult`
+### `WalletCommandResult`
 
 ```typescript
 {
-  taskId: string        // "task_<slug>"
-  task: string          // original task string (trimmed)
-  status: 'completed'  // always 'completed' in current implementation
-  summary: string       // "Completed fake agent task: <task>"
-  steps: string[]       // fixed: ['validate input', 'plan work', 'report completion']
-  timestamp: string     // ISO 8601
+  address: string
+  network: 'mainnet' | 'testnet'
+  timestamp: string
 }
 ```
 
-### `StatusCommandResult`
+### `ApiEndpointResult`
 
 ```typescript
 {
-  taskId: string            // provided ID (trimmed)
-  status: 'queued' | 'running' | 'completed'
-  progress: number          // 0 | 55 | 100 depending on status
-  summary: string           // "Task <id> is <status>."
-  timestamp: string         // ISO 8601
+  method: 'GET' | 'POST'
+  endpoint: string
+  url: string
+  statusCode: number
+  provider?: string
+  response: unknown
+  paymentResponse?: unknown
+  timestamp: string
 }
 ```
 
