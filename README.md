@@ -59,6 +59,17 @@ JSON mode is automation-safe:
 
 Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAGENT_API_URL`, falling back to `http://localhost:8082`. Every endpoint command also accepts `--api-url <url>`.
 
+For local x402 testing, copy the example env file and load it into your shell before running commands:
+
+```bash
+cp .env.example .env
+set -a
+source .env
+set +a
+```
+
+Set `STACKS_PRIVATE_KEY` to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+
 ```bash
 pnpm exec tsx src/index.ts health --json
 pnpm exec tsx src/index.ts services --json
