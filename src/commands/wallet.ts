@@ -3,7 +3,6 @@ import { z } from 'zod'
 
 import { normalizeError } from '../core/errors.js'
 import { getExitCode } from '../core/exit.js'
-import { readStacksConfig } from '../core/stacks-config.js'
 import { renderJsonError, renderJsonSuccess } from '../output/agent.js'
 import { renderFriendlyError, renderWalletResult } from '../output/human.js'
 import { getWalletInfo } from '../services/wallet-service.js'
@@ -30,9 +29,8 @@ async function handleWallet(
 
   try {
     walletCommandSchema.parse(options)
-    const config = readStacksConfig(context.env)
     const timestamp = context.now()
-    const result = getWalletInfo(config, timestamp)
+    const result = await getWalletInfo(context.env, timestamp, runtime.commandRunner)
 
     if (context.mode === 'json') {
       renderJsonSuccess(context, result, timestamp)

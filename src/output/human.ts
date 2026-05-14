@@ -50,6 +50,7 @@ export async function renderWalletResult(context: CommandContext, result: Wallet
     renderPlainBlock(context, [
       `address: ${result.address}`,
       `network: ${result.network}`,
+      `provider: ${result.provider}`,
       `timestamp: ${result.timestamp}`,
     ])
     return
@@ -64,6 +65,7 @@ export async function renderWalletResult(context: CommandContext, result: Wallet
     [
       `Address: ${result.address}`,
       `Network: ${result.network}`,
+      `Provider: ${result.provider}`,
       `Timestamp: ${result.timestamp}`,
     ].join('\n'),
     'Wallet',

@@ -1,5 +1,16 @@
 import type { OutputMode } from './output.js'
 
+export type CommandRunner = (
+  command: string,
+  args: readonly string[],
+  options?: {
+    env?: NodeJS.ProcessEnv
+  },
+) => Promise<{
+  stdout: string
+  stderr: string
+}>
+
 export interface Writer {
   write(chunk: string | Uint8Array): boolean
   isTTY?: boolean
@@ -11,6 +22,7 @@ export interface RuntimeOptions {
   stdin?: NodeJS.ReadableStream
   now?: () => string
   env?: NodeJS.ProcessEnv
+  commandRunner?: CommandRunner
 }
 
 export interface TerminalInfo {

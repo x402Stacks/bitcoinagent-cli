@@ -3,9 +3,12 @@ export type WalletCommandOptions = {
   plain?: boolean
 }
 
+export type WalletProvider = 'private-key' | 'ows'
+
 export type WalletCommandResult = {
   address: string
   network: 'mainnet' | 'testnet'
+  provider: WalletProvider
   timestamp: string
 }
 

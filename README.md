@@ -74,7 +74,19 @@ source .env
 set +a
 ```
 
-Set `STACKS_PRIVATE_KEY` to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+By default, AgentSats uses `AGENTSATS_WALLET_PROVIDER=private-key` and reads `STACKS_PRIVATE_KEY`. Set it to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+
+To use an Open Wallet Standard vault wallet instead, set:
+
+```bash
+AGENTSATS_WALLET_PROVIDER=ows
+OWS_WALLET=agent-treasury
+OWS_CHAIN=stacks:2147483648
+OWS_CLI=ows
+OWS_PASSPHRASE=
+```
+
+`OWS_CHAIN` defaults from `STACKS_NETWORK` when unset. Use `stacks:1` for mainnet or `stacks:2147483648` for testnet.
 
 ```bash
 npx agentsats health --json
