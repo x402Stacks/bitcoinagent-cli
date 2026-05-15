@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 import { runCli } from '../src/cli.js'
 import type { RuntimeOptions } from '../src/types/context.js'
 
 const TEST_PRIVATE_KEY =
   '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+const OWS_PREVIEW_COMMIT = '94e059363f172ed71fa72d7b0619508ae11ba0d1'
+const OWS_PREVIEW_WARNING = 'Stacks support in OWS is still under development.'
 
 function createMemoryWriter() {
   let value = ''
@@ -172,6 +177,215 @@ describe('wallet command — json mode', () => {
     })
 
     expect(result.stdout).not.toContain('AgentSats command line')
+  })
+
+  it('uses saved OWS wallet config when wallet environment variables are absent', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-config-wallet-'))
+    const owsCli = path.join(agentsatsHome, 'ows', 'pr-115', OWS_PREVIEW_COMMIT, 'ows', 'target', 'release', 'ows')
+
+    try {
+      await mkdir(agentsatsHome, { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: owsCli,
+          keyEncoding: 'uncompressed',
+          preview: {
+            source: 'ows-pr-115',
+            commit: OWS_PREVIEW_COMMIT,
+          },
+        },
+      })}\n`)
+
+      const result = await execute(
+        ['wallet', '--json'],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        {
+          commandRunner: async (command, args) => {
+            expect(command).toBe(owsCli)
+            expect(args).toEqual(['wallet', 'list'])
+
+            return {
+              stdout: [
+                'ID:      wallet-1',
+                'Name:    agentsats-mainnet',
+                'Secured: yes',
+                '  stacks:1 (stacks) -> SP21DDYJM3A6J086F0ZYGZJ24MRCTSTXED71J8DTS',
+                'Created: 2026-05-15T00:00:00Z',
+                '',
+              ].join('\n'),
+              stderr: '',
+            }
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(payload.data.provider).toBe('ows')
+      expect(payload.data.network).toBe('mainnet')
+      expect(payload.data.address).toBe('SP21DDYJM3A6J086F0ZYGZJ24MRCTSTXED71J8DTS')
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('wallet setup command — json mode', () => {
+  it('rejects OWS setup unless the Stacks preview flag is explicit', async () => {
+    const result = await execute([
+      'wallet',
+      'setup',
+      '--provider',
+      'ows',
+      '--wallet',
+      'agentsats-mainnet',
+      '--network',
+      'mainnet',
+      '--json',
+    ])
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(1)
+    expect(result.stderr).toBe('')
+    expect(payload.success).toBe(false)
+    expect(payload.error.code).toBe('VALIDATION_ERROR')
+    expect(payload.error.message).toContain('--preview-stacks')
+  })
+
+  it('builds the pinned OWS Stacks preview, creates a wallet, and saves non-secret config', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-ows-preview-'))
+    const calls: {
+      command: string
+      args: readonly string[]
+      cwd?: string
+    }[] = []
+
+    try {
+      const result = await execute(
+        [
+          'wallet',
+          'setup',
+          '--provider',
+          'ows',
+          '--preview-stacks',
+          '--wallet',
+          'agentsats-mainnet',
+          '--network',
+          'mainnet',
+          '--json',
+        ],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        {
+          commandRunner: async (command, args, options) => {
+            calls.push({ command, args, cwd: options?.cwd })
+
+            if (command === 'git' && args[0] === '--version') {
+              return { stdout: 'git version 2.50.0\n', stderr: '' }
+            }
+
+            if (command === 'cargo' && args[0] === '--version') {
+              return { stdout: 'cargo 1.90.0\n', stderr: '' }
+            }
+
+            if (command === 'git' && args[0] === 'clone') {
+              return { stdout: '', stderr: '' }
+            }
+
+            if (command === 'git' && args[0] === 'checkout') {
+              return { stdout: '', stderr: '' }
+            }
+
+            if (command === 'cargo' && args[0] === 'build') {
+              return { stdout: '', stderr: '' }
+            }
+
+            if (command.endsWith('/ows') && args[0] === 'wallet' && args[1] === 'list') {
+              const walletListCalls = calls.filter((call) => (
+                call.command.endsWith('/ows') &&
+                call.args[0] === 'wallet' &&
+                call.args[1] === 'list'
+              ))
+
+              if (walletListCalls.length === 1) {
+                return { stdout: '', stderr: '' }
+              }
+
+              return {
+                stdout: [
+                  'ID:      wallet-1',
+                  'Name:    agentsats-mainnet',
+                  'Secured: yes',
+                  '  stacks:1 (stacks) -> SP21DDYJM3A6J086F0ZYGZJ24MRCTSTXED71J8DTS',
+                  'Created: 2026-05-15T00:00:00Z',
+                  '',
+                ].join('\n'),
+                stderr: '',
+              }
+            }
+
+            if (command.endsWith('/ows') && args[0] === 'wallet' && args[1] === 'create') {
+              return { stdout: 'Wallet created\n', stderr: '' }
+            }
+
+            throw new Error(`unexpected command: ${command} ${args.join(' ')}`)
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+      const sourceDir = path.join(agentsatsHome, 'ows', 'pr-115', OWS_PREVIEW_COMMIT)
+      const owsCli = path.join(sourceDir, 'ows', 'target', 'release', 'ows')
+      const configPath = path.join(agentsatsHome, 'config.json')
+      const config = JSON.parse(await readFile(configPath, 'utf8'))
+
+      expect(result.exitCode).toBe(0)
+      expect(result.stderr).toBe('')
+      expect(payload.success).toBe(true)
+      expect(payload.data.warning).toBe(OWS_PREVIEW_WARNING)
+      expect(payload.data.provider).toBe('ows')
+      expect(payload.data.preview).toBe(true)
+      expect(payload.data.wallet).toBe('agentsats-mainnet')
+      expect(payload.data.network).toBe('mainnet')
+      expect(payload.data.chain).toBe('stacks:1')
+      expect(payload.data.address).toBe('SP21DDYJM3A6J086F0ZYGZJ24MRCTSTXED71J8DTS')
+      expect(payload.data.owsCli).toBe(owsCli)
+      expect(payload.data.sourceDir).toBe(sourceDir)
+      expect(payload.data.commit).toBe(OWS_PREVIEW_COMMIT)
+      expect(payload.data.configPath).toBe(configPath)
+      expect(config.wallet).toEqual({
+        provider: 'ows',
+        wallet: 'agentsats-mainnet',
+        chain: 'stacks:1',
+        cliPath: owsCli,
+        keyEncoding: 'uncompressed',
+        preview: {
+          source: 'ows-pr-115',
+          commit: OWS_PREVIEW_COMMIT,
+        },
+      })
+      expect(calls.map((call) => [call.command, ...call.args])).toEqual([
+        ['git', '--version'],
+        ['cargo', '--version'],
+        ['git', 'clone', 'https://github.com/tony1908/core.git', sourceDir],
+        ['git', 'checkout', OWS_PREVIEW_COMMIT],
+        ['cargo', 'build', '--release', '--bin', 'ows'],
+        [owsCli, 'wallet', 'list'],
+        [owsCli, 'wallet', 'create', '--name', 'agentsats-mainnet'],
+        [owsCli, 'wallet', 'list'],
+      ])
+      expect(calls.find((call) => call.command === 'git' && call.args[0] === 'checkout')?.cwd).toBe(sourceDir)
+      expect(calls.find((call) => call.command === 'cargo' && call.args[0] === 'build')?.cwd)
+        .toBe(path.join(sourceDir, 'ows'))
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
   })
 })
 

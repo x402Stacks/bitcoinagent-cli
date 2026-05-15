@@ -25,6 +25,16 @@ pnpm lint             # placeholder (not configured)
 pnpm completions:generate  # build + run complete command
 ```
 
+## AgentSats CLI Skill
+
+When using or changing the CLI, including Open Wallet Standard preview setup for Stacks and x402 Stacks payments through OWS, read the project-level skill at `SKILL.md`.
+
+The preview warning text is:
+
+```text
+Stacks support in OWS is still under development.
+```
+
 ## Architecture
 
 ```

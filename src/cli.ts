@@ -20,6 +20,7 @@ function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
     now: options.now ?? (() => new Date().toISOString()),
     env: options.env ?? process.env,
     commandRunner: options.commandRunner ?? runCommand,
+    fetcher: options.fetcher ?? fetch,
     exitCode: 0,
   }
 }

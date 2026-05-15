@@ -6,6 +6,7 @@ import type { CommandContext } from '../types/context.js'
 import type {
   ApiEndpointResult,
   WalletCommandResult,
+  WalletSetupResult,
 } from '../types/commands.js'
 import { toNodeWritable } from '../utils/terminal.js'
 
@@ -69,6 +70,42 @@ export async function renderWalletResult(context: CommandContext, result: Wallet
       `Timestamp: ${result.timestamp}`,
     ].join('\n'),
     'Wallet',
+    { output },
+  )
+}
+
+export async function renderWalletSetupResult(context: CommandContext, result: WalletSetupResult) {
+  if (context.mode === 'plain') {
+    renderPlainBlock(context, [
+      `warning: ${result.warning}`,
+      `address: ${result.address}`,
+      `network: ${result.network}`,
+      `provider: ${result.provider}`,
+      `wallet: ${result.wallet}`,
+      `chain: ${result.chain}`,
+      `owsCli: ${result.owsCli}`,
+      `configPath: ${result.configPath}`,
+      `timestamp: ${result.timestamp}`,
+    ])
+    return
+  }
+
+  renderBanner(context)
+
+  const output = toNodeWritable(context.stdout)
+
+  log.warning(result.warning, { output })
+  log.success(`OWS wallet ready on ${result.network}`, { output })
+  note(
+    [
+      `Address: ${result.address}`,
+      `Wallet: ${result.wallet}`,
+      `Chain: ${result.chain}`,
+      `OWS CLI: ${result.owsCli}`,
+      `Config: ${result.configPath}`,
+      `Timestamp: ${result.timestamp}`,
+    ].join('\n'),
+    'OWS Preview Wallet',
     { output },
   )
 }

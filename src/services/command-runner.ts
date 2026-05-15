@@ -10,6 +10,7 @@ export const runCommand: CommandRunner = async (command, args, options = {}) => 
   try {
     const result = await execFileAsync(command, [...args], {
       env: options.env,
+      cwd: options.cwd,
     })
 
     return {

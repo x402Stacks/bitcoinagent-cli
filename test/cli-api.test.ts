@@ -4,6 +4,10 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
+import type { RuntimeOptions } from '../src/types/context.js'
+
+const TEST_PRIVATE_KEY =
+  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
 
 function createMemoryWriter() {
   let value = ''
@@ -45,6 +49,30 @@ function createPaymentRequiredHeader() {
         network: 'stacks:2147483648',
         asset: 'STX',
         amount: '1000',
+      },
+    ],
+  })).toString('base64')
+}
+
+function createStacksPaymentRequiredHeader() {
+  return Buffer.from(JSON.stringify({
+    x402Version: 2,
+    resource: {
+      url: '/api/v1/twitter/profile',
+      description: 'Fetch a Twitter profile by username',
+      mimeType: 'application/json',
+    },
+    accepts: [
+      {
+        scheme: 'exact',
+        network: 'stacks:2147483648',
+        asset: 'STX',
+        amount: '1000',
+        payTo: 'STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
+        maxTimeoutSeconds: 30,
+        resource: '/api/v1/twitter/profile',
+        description: 'Fetch a Twitter profile by username',
+        mimeType: 'application/json',
       },
     ],
   })).toString('base64')
@@ -347,15 +375,20 @@ async function startApiServer() {
   return `http://127.0.0.1:${address.port}`
 }
 
-async function execute(argv: string[]) {
+async function execute(
+  argv: string[],
+  env: NodeJS.ProcessEnv = {},
+  options: Omit<RuntimeOptions, 'stdout' | 'stderr' | 'now' | 'env'> = {},
+) {
   const stdout = createMemoryWriter()
   const stderr = createMemoryWriter()
 
   const exitCode = await runCli(argv, {
+    ...options,
     stdout,
     stderr,
     now: () => '2026-04-16T00:00:00.000Z',
-    env: {},
+    env,
   })
 
   return {
@@ -392,8 +425,8 @@ describe('api endpoint commands', () => {
     const result = await execute(['services', '--api-url', apiUrl, '--json'])
     const payload = JSON.parse(result.stdout)
 
-    expect(result.exitCode).toBe(0)
     expect(payload.success).toBe(true)
+    expect(result.exitCode).toBe(0)
     expect(payload.data.provider).toBe('internal')
     expect(payload.data.response.services[0]).toEqual({
       name: 'twitter',
@@ -538,6 +571,172 @@ describe('api endpoint commands', () => {
       asset: 'STX',
       amount: '1000',
     })
+  })
+
+  it('retries paid endpoints with an x402 payment signature when a wallet is configured', async () => {
+    const paymentRequired = createStacksPaymentRequiredHeader()
+    const requests: { url: string; paymentSignature: string | null }[] = []
+    const fetcher = async (input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input))
+
+      if (url.pathname === '/extended/v1/address/ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM/nonces') {
+        return new Response(JSON.stringify({ possible_next_nonce: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      if (url.pathname === '/v2/fees/transaction') {
+        return new Response(JSON.stringify({
+          estimations: [
+            { fee: 180, fee_rate: 1 },
+            { fee: 220, fee_rate: 1 },
+            { fee: 260, fee_rate: 1 },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      if (url.pathname === '/api/v1/twitter/profile') {
+        const headers = new Headers(init?.headers)
+        const paymentSignature = headers.get('payment-signature')
+        requests.push({ url: `${url.pathname}${url.search}`, paymentSignature })
+
+        if (!paymentSignature) {
+          return new Response(JSON.stringify({ error: 'payment_required' }), {
+            status: 402,
+            headers: {
+              'content-type': 'application/json',
+              'payment-required': paymentRequired,
+            },
+          })
+        }
+
+        return new Response(JSON.stringify({
+          data: {
+            RestID: '44196397',
+            Username: 'MrBeast',
+            DisplayName: 'MrBeast',
+          },
+          meta: { provider: 'rapidapi' },
+        }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'payment-response': Buffer.from(JSON.stringify({ success: true })).toString('base64'),
+          },
+        })
+      }
+
+      return new Response(JSON.stringify({ error: 'not_found', path: url.pathname }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+
+    const result = await execute(
+      ['twitter-profile', '--username', 'MrBeast', '--api-url', 'http://bitcoinagent.test', '--json'],
+      {
+        STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+        STACKS_NETWORK: 'testnet',
+      },
+      { fetcher },
+    )
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.success).toBe(true)
+    expect(payload.data.response.Username).toBe('MrBeast')
+    expect(payload.data.paymentResponse).toEqual({ success: true })
+    expect(requests).toHaveLength(2)
+    expect(requests[0]?.paymentSignature).toBeNull()
+    expect(requests[1]?.paymentSignature).toMatch(/^[A-Za-z0-9+/]+=*$/)
+    const paymentPayload = JSON.parse(Buffer.from(requests[1]?.paymentSignature ?? '', 'base64').toString('utf8'))
+    expect(paymentPayload.x402Version).toBe(2)
+    expect(paymentPayload.accepted.network).toBe('stacks:2147483648')
+    expect(paymentPayload.payload.transaction).toMatch(/^[0-9a-f]+$/i)
+  })
+
+  it('reuses the same x402 payment signature when initial settlement is still pending', async () => {
+    const paymentRequired = createStacksPaymentRequiredHeader()
+    const requests: { url: string; paymentSignature: string | null }[] = []
+    const fetcher = async (input: string | URL, init?: RequestInit) => {
+      const url = new URL(String(input))
+
+      if (url.pathname === '/extended/v1/address/ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM/nonces') {
+        return new Response(JSON.stringify({ possible_next_nonce: 0 }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      if (url.pathname === '/v2/fees/transaction') {
+        return new Response(JSON.stringify({
+          estimations: [
+            { fee: 180, fee_rate: 1 },
+            { fee: 220, fee_rate: 1 },
+            { fee: 260, fee_rate: 1 },
+          ],
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      if (url.pathname === '/api/v1/twitter/profile') {
+        const headers = new Headers(init?.headers)
+        const paymentSignature = headers.get('payment-signature')
+        requests.push({ url: `${url.pathname}${url.search}`, paymentSignature })
+
+        if (!paymentSignature || requests.length === 2) {
+          return new Response(JSON.stringify({ error: 'payment_required' }), {
+            status: 402,
+            headers: {
+              'content-type': 'application/json',
+              'payment-required': paymentRequired,
+            },
+          })
+        }
+
+        return new Response(JSON.stringify({
+          data: {
+            RestID: '44196397',
+            Username: 'MrBeast',
+            DisplayName: 'MrBeast',
+          },
+          meta: { provider: 'rapidapi' },
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+
+      return new Response(JSON.stringify({ error: 'not_found', path: url.pathname }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+
+    const result = await execute(
+      ['twitter-profile', '--username', 'MrBeast', '--api-url', 'http://bitcoinagent.test', '--json'],
+      {
+        STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
+        STACKS_NETWORK: 'testnet',
+      },
+      { fetcher },
+    )
+    const payload = JSON.parse(result.stdout)
+    const paidSignatures = requests.map((request) => request.paymentSignature).filter((value): value is string => value !== null)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.success).toBe(true)
+    expect(payload.data.response.Username).toBe('MrBeast')
+    expect(requests).toHaveLength(3)
+    expect(requests[0]?.paymentSignature).toBeNull()
+    expect(paidSignatures).toHaveLength(2)
+    expect(new Set(paidSignatures).size).toBe(1)
   })
 
   it('calls any GET endpoint by path with repeated query flags', async () => {

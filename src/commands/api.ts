@@ -203,6 +203,11 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
     parsed: T,
     config: BitcoinAgentApiConfig,
     timestamp: string,
+    requestOptions: {
+      env: NodeJS.ProcessEnv
+      commandRunner: ResolvedRuntime['commandRunner']
+      fetcher: ResolvedRuntime['fetcher']
+    },
   ) => Promise<ApiEndpointResult>,
 ): Promise<number> {
   const context = createCommandContext(getRawFlags(options), runtime)
@@ -211,7 +216,11 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
     const parsed = parseOptions(options)
     const config = readBitcoinAgentApiConfig(context.env, parsed.apiUrl)
     const timestamp = context.now()
-    const result = await getResult(parsed, config, timestamp)
+    const result = await getResult(parsed, config, timestamp, {
+      env: context.env,
+      commandRunner: runtime.commandRunner,
+      fetcher: runtime.fetcher,
+    })
 
     if (context.mode === 'json') {
       renderJsonSuccess(context, result, timestamp)
@@ -247,7 +256,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => apiCommandSchema.parse(value),
-        (_parsed, config, timestamp) => getHealth(config, timestamp),
+        (_parsed, config, timestamp, requestOptions) => getHealth(config, timestamp, requestOptions),
       )
     })
 
@@ -257,7 +266,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => apiCommandSchema.parse(value),
-        (_parsed, config, timestamp) => listServices(config, timestamp),
+        (_parsed, config, timestamp, requestOptions) => listServices(config, timestamp, requestOptions),
       )
     })
 
@@ -268,7 +277,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => serviceEndpointSchema.parse(value),
-        (parsed, config, timestamp) => listServiceEndpoints(config, parsed.service, timestamp),
+        (parsed, config, timestamp, requestOptions) => listServiceEndpoints(config, parsed.service, timestamp, requestOptions),
       )
     })
 
@@ -282,10 +291,11 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => apiCallSchema.parse(value),
-        (parsed, config, timestamp) => callApiEndpoint(
+        (parsed, config, timestamp, requestOptions) => callApiEndpoint(
           config,
           createApiCallRequest(parsed.method, parsed.path, parsed.query, parsed.bodyJson),
           timestamp,
+          requestOptions,
         ),
       )
     })
@@ -301,7 +311,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
           options,
           runtime,
           (value) => serviceCallSchema.parse(value),
-          (parsed, config, timestamp) => callApiEndpoint(
+          (parsed, config, timestamp, requestOptions) => callApiEndpoint(
             config,
             createApiCallRequest(
               parsed.method,
@@ -310,6 +320,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
               parsed.bodyJson,
             ),
             timestamp,
+            requestOptions,
           ),
         )
       })
@@ -322,7 +333,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => usernameSchema.parse(value),
-        (parsed, config, timestamp) => getTikTokProfile(config, parsed.username, timestamp),
+        (parsed, config, timestamp, requestOptions) => getTikTokProfile(config, parsed.username, timestamp, requestOptions),
       )
     })
 
@@ -335,12 +346,13 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => tiktokVideosSchema.parse(value),
-        (parsed, config, timestamp) => listTikTokVideos(
+        (parsed, config, timestamp, requestOptions) => listTikTokVideos(
           config,
           parsed.secUid,
           parsed.count,
           parsed.cursor,
           timestamp,
+          requestOptions,
         ),
       )
     })
@@ -352,7 +364,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => usernameSchema.parse(value),
-        (parsed, config, timestamp) => getTwitterProfile(config, parsed.username, timestamp),
+        (parsed, config, timestamp, requestOptions) => getTwitterProfile(config, parsed.username, timestamp, requestOptions),
       )
     })
 
@@ -364,7 +376,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => userIdSchema.parse(value),
-        (parsed, config, timestamp) => listTwitterHighlights(config, parsed.userId, parsed.count, timestamp),
+        (parsed, config, timestamp, requestOptions) => listTwitterHighlights(config, parsed.userId, parsed.count, timestamp, requestOptions),
       )
     })
 
@@ -376,7 +388,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => userIdSchema.parse(value),
-        (parsed, config, timestamp) => listTwitterTweets(config, parsed.userId, parsed.count, timestamp),
+        (parsed, config, timestamp, requestOptions) => listTwitterTweets(config, parsed.userId, parsed.count, timestamp, requestOptions),
       )
     })
 
@@ -388,7 +400,7 @@ export function registerApiCommands(program: Command, runtime: ResolvedRuntime) 
         options,
         runtime,
         (value) => userIdSchema.parse(value),
-        (parsed, config, timestamp) => listTwitterFollowings(config, parsed.userId, parsed.count, timestamp),
+        (parsed, config, timestamp, requestOptions) => listTwitterFollowings(config, parsed.userId, parsed.count, timestamp, requestOptions),
       )
     })
 }
