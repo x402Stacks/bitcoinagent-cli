@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { existsSync, readFileSync } from 'node:fs'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 
@@ -76,7 +76,7 @@ function readAgentsatsConfig(env: NodeJS.ProcessEnv): AgentsatsConfigFile | unde
 export async function writeAgentsatsConfig(env: NodeJS.ProcessEnv, config: AgentsatsConfigFile) {
   const configPath = resolveAgentsatsConfigPath(env)
   await mkdir(path.dirname(configPath), { recursive: true })
-  writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
+  await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8')
   return configPath
 }
 

@@ -1,11 +1,9 @@
-import { existsSync } from 'node:fs'
-import { mkdir } from 'node:fs/promises'
+import { access, mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
 
 import { NotFoundError, ValidationError } from '../core/errors.js'
 import {
-  resolveAgentsatsConfigPath,
   writeAgentsatsConfig,
   type StacksNetwork,
 } from '../core/stacks-config.js'
@@ -67,12 +65,21 @@ function parseExistingWalletAddress(output: string, wallet: string, chain: strin
   }
 }
 
+async function pathExists(value: string) {
+  try {
+    await access(value)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function ensurePreviewSource(commandRunner: CommandRunner, env: NodeJS.ProcessEnv, sourceDir: string) {
   await commandRunner('git', ['--version'], { env })
   await commandRunner('cargo', ['--version'], { env })
   await mkdir(path.dirname(sourceDir), { recursive: true })
 
-  if (!existsSync(sourceDir)) {
+  if (!(await pathExists(path.join(sourceDir, '.git')))) {
     await commandRunner('git', ['clone', OWS_STACKS_PREVIEW_REPO, sourceDir], { env })
   }
 
@@ -90,7 +97,10 @@ async function ensureOwsWallet(
   wallet: string,
   chain: string,
 ) {
-  const beforeCreate = await commandRunner(owsCli, ['wallet', 'list'], { env })
+  const beforeCreate = await commandRunner(owsCli, ['wallet', 'list'], { env }).catch(() => ({
+    stdout: '',
+    stderr: '',
+  }))
   const existingAddress = parseExistingWalletAddress(beforeCreate.stdout, wallet, chain)
   if (existingAddress) {
     return existingAddress
@@ -134,7 +144,7 @@ export async function setupOwsPreviewWallet(options: SetupOwsPreviewWalletOption
     chain,
     owsCli,
     sourceDir,
-    configPath: options.env.AGENTSATS_CONFIG_PATH?.trim() || resolveAgentsatsConfigPath(options.env) || configPath,
+    configPath,
     commit: OWS_STACKS_PREVIEW_COMMIT,
     timestamp: options.timestamp,
   }

@@ -260,6 +260,7 @@ describe('wallet setup command — json mode', () => {
 
   it('builds the pinned OWS Stacks preview, creates a wallet, and saves non-secret config', async () => {
     const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-ows-preview-'))
+    const sourceDir = path.join(agentsatsHome, 'ows', 'pr-115', OWS_PREVIEW_COMMIT)
     const calls: {
       command: string
       args: readonly string[]
@@ -267,6 +268,8 @@ describe('wallet setup command — json mode', () => {
     }[] = []
 
     try {
+      await mkdir(sourceDir, { recursive: true })
+
       const result = await execute(
         [
           'wallet',
@@ -315,7 +318,7 @@ describe('wallet setup command — json mode', () => {
               ))
 
               if (walletListCalls.length === 1) {
-                return { stdout: '', stderr: '' }
+                throw new Error('OWS vault is not initialized')
               }
 
               return {
@@ -340,7 +343,6 @@ describe('wallet setup command — json mode', () => {
         },
       )
       const payload = JSON.parse(result.stdout)
-      const sourceDir = path.join(agentsatsHome, 'ows', 'pr-115', OWS_PREVIEW_COMMIT)
       const owsCli = path.join(sourceDir, 'ows', 'target', 'release', 'ows')
       const configPath = path.join(agentsatsHome, 'config.json')
       const config = JSON.parse(await readFile(configPath, 'utf8'))
