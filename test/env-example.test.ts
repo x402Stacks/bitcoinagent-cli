@@ -7,7 +7,11 @@ describe('.env.example', () => {
     const envExample = readFileSync('.env.example', 'utf8')
 
     expect(envExample).toContain('BITCOINAGENT_API_URL=')
+    expect(envExample).toContain('AGENTSATS_WALLET_PROVIDER=')
     expect(envExample).toContain('STACKS_PRIVATE_KEY=')
     expect(envExample).toContain('STACKS_NETWORK=')
+    expect(envExample).toContain('OWS_WALLET=')
+    expect(envExample).toContain('OWS_CHAIN=')
+    expect(envExample).toContain('OWS_CLI=')
   })
 })

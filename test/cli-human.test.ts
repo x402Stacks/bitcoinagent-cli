@@ -54,5 +54,6 @@ describe('human banner', () => {
 
     expect(result.exitCode).toBe(0)
     expect(result.stdout).not.toContain('AgentSats command line')
+    expect(result.stdout).toContain('provider: private-key')
   })
 })

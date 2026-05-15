@@ -1,6 +1,8 @@
 import { InternalError, NotFoundError, PaymentRequiredError, ValidationError } from '../core/errors.js'
 import type { BitcoinAgentApiConfig } from '../core/api-config.js'
 import type { ApiEndpointResult } from '../types/commands.js'
+import type { CommandRunner, FetchLike } from '../types/context.js'
+import { createX402PaymentSignatureHeader } from './x402-payment.js'
 
 type ApiEnvelope = {
   data: unknown
@@ -9,8 +11,15 @@ type ApiEnvelope = {
   }
 }
 
-type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>
 type ApiMethod = ApiEndpointResult['method']
+
+const PAYMENT_SETTLEMENT_RETRY_COUNT = 1
+
+interface RequestEndpointOptions {
+  env?: NodeJS.ProcessEnv
+  commandRunner?: CommandRunner
+  fetcher?: FetchLike
+}
 
 export type ApiQueryPair = {
   key: string
@@ -135,7 +144,7 @@ function decodeBase64Json(value: string | null): unknown {
 }
 
 function decodePaymentResponse(headers: Headers): unknown {
-  return decodeBase64Json(headers.get('x-payment-response'))
+  return decodeBase64Json(headers.get('payment-response') ?? headers.get('x-payment-response'))
 }
 
 function decodePaymentRequired(headers: Headers): unknown {
@@ -179,20 +188,14 @@ async function requestEndpoint(
   path: string,
   timestamp: string,
   bodyJson?: string,
-  fetcher: FetchLike = fetch,
+  options: RequestEndpointOptions = {},
 ): Promise<ApiEndpointResult> {
   const url = buildUrl(config.baseUrl, path)
+  const fetcher = options.fetcher ?? fetch
   let response: Response
 
   try {
-    response = await fetcher(url, {
-      method,
-      headers: {
-        accept: 'application/json',
-        ...(bodyJson === undefined ? {} : { 'content-type': 'application/json' }),
-      },
-      ...(bodyJson === undefined ? {} : { body: bodyJson }),
-    })
+    response = await fetchEndpoint(fetcher, url, method, bodyJson)
   } catch (error) {
     throw new InternalError('Failed to call bitcoinagent API.', {
       endpoint,
@@ -201,7 +204,37 @@ async function requestEndpoint(
     })
   }
 
-  const body = tryParseJson(await response.text())
+  let body = tryParseJson(await response.text())
+  let paymentRequired = decodePaymentRequired(response.headers)
+
+  if (!response.ok && response.status === 402 && paymentRequired !== undefined && options.commandRunner) {
+    const paymentSignature = await createX402PaymentSignatureHeader(paymentRequired, {
+      env: options.env ?? process.env,
+      commandRunner: options.commandRunner,
+      fetcher,
+    })
+
+    if (paymentSignature) {
+      for (let attempt = 0; attempt <= PAYMENT_SETTLEMENT_RETRY_COUNT; attempt += 1) {
+        try {
+          response = await fetchEndpoint(fetcher, url, method, bodyJson, paymentSignature)
+        } catch (error) {
+          throw new InternalError('Failed to call bitcoinagent API with x402 payment.', {
+            endpoint,
+            url,
+            cause: error instanceof Error ? error.message : error,
+          })
+        }
+
+        body = tryParseJson(await response.text())
+        paymentRequired = decodePaymentRequired(response.headers)
+
+        if (response.status !== 402 || paymentRequired === undefined) {
+          break
+        }
+      }
+    }
+  }
 
   if (response.ok) {
     const envelope = unwrapEnvelope(body)
@@ -219,7 +252,6 @@ async function requestEndpoint(
     }
   }
 
-  const paymentRequired = decodePaymentRequired(response.headers)
   const details = toErrorDetails(response.status, endpoint, url, body, paymentRequired)
 
   if (response.status === 402) {
@@ -237,30 +269,50 @@ async function requestEndpoint(
   throw new InternalError('Bitcoinagent API request failed.', details)
 }
 
-export function getHealth(config: BitcoinAgentApiConfig, timestamp: string) {
-  return requestEndpoint(config, 'GET', '/health', '/health', timestamp)
+function fetchEndpoint(
+  fetcher: FetchLike,
+  url: string,
+  method: ApiMethod,
+  bodyJson?: string,
+  paymentSignature?: string,
+) {
+  return fetcher(url, {
+    method,
+    headers: {
+      accept: 'application/json',
+      ...(bodyJson === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(paymentSignature === undefined ? {} : { 'payment-signature': paymentSignature }),
+    },
+    ...(bodyJson === undefined ? {} : { body: bodyJson }),
+  })
 }
 
-export function listServices(config: BitcoinAgentApiConfig, timestamp: string) {
-  return requestEndpoint(config, 'GET', '/api/v1/services', '/api/v1/services', timestamp)
+export function getHealth(config: BitcoinAgentApiConfig, timestamp: string, options?: RequestEndpointOptions) {
+  return requestEndpoint(config, 'GET', '/health', '/health', timestamp, undefined, options)
+}
+
+export function listServices(config: BitcoinAgentApiConfig, timestamp: string, options?: RequestEndpointOptions) {
+  return requestEndpoint(config, 'GET', '/api/v1/services', '/api/v1/services', timestamp, undefined, options)
 }
 
 export function listServiceEndpoints(
   config: BitcoinAgentApiConfig,
   service: string,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = `/api/v1/services/${service}/endpoints`
-  return requestEndpoint(config, 'GET', endpoint, endpoint, timestamp)
+  return requestEndpoint(config, 'GET', endpoint, endpoint, timestamp, undefined, options)
 }
 
 export function getTikTokProfile(
   config: BitcoinAgentApiConfig,
   username: string,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/tiktok/user/info'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { uniqueId: username }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { uniqueId: username }), timestamp, undefined, options)
 }
 
 export function listTikTokVideos(
@@ -269,18 +321,20 @@ export function listTikTokVideos(
   count: number | undefined,
   cursor: string | undefined,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/tiktok/user/posts'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { secUid, count, cursor }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { secUid, count, cursor }), timestamp, undefined, options)
 }
 
 export function getTwitterProfile(
   config: BitcoinAgentApiConfig,
   username: string,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/twitter/profile'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { username }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { username }), timestamp, undefined, options)
 }
 
 export function listTwitterHighlights(
@@ -288,9 +342,10 @@ export function listTwitterHighlights(
   userId: string,
   count: number | undefined,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/twitter/highlights'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp, undefined, options)
 }
 
 export function listTwitterTweets(
@@ -298,9 +353,10 @@ export function listTwitterTweets(
   userId: string,
   count: number | undefined,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/twitter/tweets'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp, undefined, options)
 }
 
 export function listTwitterFollowings(
@@ -308,15 +364,17 @@ export function listTwitterFollowings(
   userId: string,
   count: number | undefined,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   const endpoint = '/api/v1/twitter/followings'
-  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp)
+  return requestEndpoint(config, 'GET', endpoint, appendQuery(endpoint, { user_id: userId, count }), timestamp, undefined, options)
 }
 
 export function callApiEndpoint(
   config: BitcoinAgentApiConfig,
   request: ApiCallRequest,
   timestamp: string,
+  options?: RequestEndpointOptions,
 ) {
   return requestEndpoint(
     config,
@@ -325,5 +383,6 @@ export function callApiEndpoint(
     appendQueryPairs(request.path, request.query),
     timestamp,
     request.bodyJson,
+    options,
   )
 }

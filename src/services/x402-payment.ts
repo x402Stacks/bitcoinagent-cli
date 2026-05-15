@@ -1,0 +1,317 @@
+import {
+  AddressHashMode,
+  AnchorMode,
+  PubKeyEncoding,
+  createAddress,
+  emptyMessageSignature,
+  estimateTransactionFeeWithFallback,
+  getNonce,
+  isSingleSig,
+  makeSTXTokenTransfer,
+  makeUnsignedSTXTokenTransfer,
+} from '@stacks/transactions'
+import type { SingleSigSpendingCondition } from '@stacks/transactions'
+import { StacksMainnet, StacksTestnet, type FetchFn, type StacksNetwork } from '@stacks/network'
+import {
+  createFacilitatorMemo,
+  createFacilitatorNonce,
+  encodePaymentPayload,
+  privateKeyToAccount,
+  type PaymentPayloadV2,
+  type PaymentRequiredV2,
+  type PaymentRequirementsV2,
+} from 'x402-stacks'
+
+import { InternalError, ValidationError } from '../core/errors.js'
+import {
+  readOptionalWalletConfig,
+  type OwsWalletConfig,
+  type StacksConfig,
+  type StacksNetwork as AppStacksNetwork,
+  type WalletConfig,
+} from '../core/stacks-config.js'
+import type { CommandRunner, FetchLike } from '../types/context.js'
+import { parseOwsWalletAddress } from './wallet-service.js'
+
+const STACKS_SIGNATURE_OFFSET_BYTES = 44
+const STACKS_SIGNATURE_LENGTH_BYTES = 65
+
+const FAKE_COMPRESSED_PUBLIC_KEY =
+  '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
+const FAKE_UNCOMPRESSED_PUBLIC_KEY =
+  '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f817984' +
+  '83ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8'
+
+export interface X402PaymentSignatureOptions {
+  env: NodeJS.ProcessEnv
+  commandRunner: CommandRunner
+  fetcher?: FetchLike
+  fee?: bigint
+  nonce?: bigint
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function parsePaymentRequired(value: unknown): PaymentRequiredV2 | undefined {
+  if (!isRecord(value) || value.x402Version !== 2 || !isRecord(value.resource) || !Array.isArray(value.accepts)) {
+    return undefined
+  }
+
+  return value as unknown as PaymentRequiredV2
+}
+
+function walletNetworkToCAIP2(network: AppStacksNetwork) {
+  return network === 'mainnet' ? 'stacks:1' : 'stacks:2147483648'
+}
+
+function selectStacksPaymentOption(
+  paymentRequired: PaymentRequiredV2,
+  walletConfig: WalletConfig,
+): PaymentRequirementsV2 | undefined {
+  const network = walletConfig.provider === 'ows'
+    ? walletConfig.chain
+    : walletNetworkToCAIP2(walletConfig.network)
+
+  return paymentRequired.accepts.find((accept) => (
+    accept.scheme === 'exact' &&
+    accept.network === network &&
+    accept.asset === 'STX' &&
+    typeof accept.amount === 'string' &&
+    typeof accept.payTo === 'string'
+  ))
+}
+
+function readPaymentWalletConfig(env: NodeJS.ProcessEnv): WalletConfig | undefined {
+  return readOptionalWalletConfig(env)
+}
+
+function createStacksNetwork(network: AppStacksNetwork, fetcher?: FetchLike): StacksNetwork {
+  const config = fetcher === undefined
+    ? undefined
+    : {
+        fetchFn: fetcher as FetchFn,
+      }
+
+  return network === 'mainnet'
+    ? new StacksMainnet(config)
+    : new StacksTestnet(config)
+}
+
+function normalizeHex(value: string, label: string) {
+  const hex = value.trim().replace(/^0x/i, '')
+
+  if (!/^[0-9a-f]*$/i.test(hex)) {
+    throw new InternalError(`${label} must be hex encoded.`)
+  }
+
+  return hex.toLowerCase()
+}
+
+function serializeTransactionHex(transaction: { serialize: () => Uint8Array }) {
+  return Buffer.from(transaction.serialize()).toString('hex')
+}
+
+export function parseOwsSignTxSignature(output: string) {
+  const trimmed = output.trim()
+  let signature = trimmed
+
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as { signature?: unknown }
+      if (typeof parsed.signature === 'string') {
+        signature = parsed.signature
+      }
+    } catch {
+      throw new InternalError('OWS returned invalid JSON while signing the Stacks transaction.')
+    }
+  }
+
+  const normalized = normalizeHex(signature, 'OWS transaction signature')
+  if (normalized.length !== STACKS_SIGNATURE_LENGTH_BYTES * 2) {
+    throw new InternalError('OWS returned an invalid Stacks transaction signature length.', {
+      expectedBytes: STACKS_SIGNATURE_LENGTH_BYTES,
+      actualBytes: normalized.length / 2,
+    })
+  }
+
+  return normalized
+}
+
+export function injectStacksSignature(unsignedTransactionHex: string, signatureHex: string) {
+  const unsignedTransaction = normalizeHex(unsignedTransactionHex, 'Unsigned Stacks transaction')
+  const signature = normalizeHex(signatureHex, 'Stacks transaction signature')
+  const start = STACKS_SIGNATURE_OFFSET_BYTES * 2
+  const end = start + STACKS_SIGNATURE_LENGTH_BYTES * 2
+
+  if (signature.length !== STACKS_SIGNATURE_LENGTH_BYTES * 2) {
+    throw new InternalError('Stacks transaction signature must be 65 bytes.')
+  }
+
+  if (unsignedTransaction.length < end) {
+    throw new InternalError('Unsigned Stacks transaction is too short for standard single-sig signing.')
+  }
+
+  return `${unsignedTransaction.slice(0, start)}${signature}${unsignedTransaction.slice(end)}`
+}
+
+function setTransactionSigner(
+  transaction: Awaited<ReturnType<typeof makeUnsignedSTXTokenTransfer>>,
+  senderAddress: string,
+  keyEncoding: OwsWalletConfig['keyEncoding'],
+) {
+  const condition = transaction.auth.spendingCondition
+  if (!condition || !isSingleSig(condition)) {
+    throw new InternalError('Expected a standard single-sig Stacks transaction.')
+  }
+
+  const singleSigCondition = condition as SingleSigSpendingCondition
+  singleSigCondition.hashMode = AddressHashMode.SerializeP2PKH
+  singleSigCondition.signer = createAddress(senderAddress).hash160
+  singleSigCondition.keyEncoding = keyEncoding === 'compressed'
+    ? PubKeyEncoding.Compressed
+    : PubKeyEncoding.Uncompressed
+  singleSigCondition.signature = emptyMessageSignature()
+}
+
+async function createUnsignedOwsStxTransfer(
+  payment: PaymentRequirementsV2,
+  config: OwsWalletConfig,
+  senderAddress: string,
+  options: X402PaymentSignatureOptions,
+) {
+  const network = createStacksNetwork(config.network, options.fetcher)
+  const publicKey = config.keyEncoding === 'compressed'
+    ? FAKE_COMPRESSED_PUBLIC_KEY
+    : FAKE_UNCOMPRESSED_PUBLIC_KEY
+  const transaction = await makeUnsignedSTXTokenTransfer({
+    recipient: payment.payTo,
+    amount: BigInt(payment.amount),
+    publicKey,
+    network,
+    memo: createFacilitatorMemo(createFacilitatorNonce()),
+    anchorMode: AnchorMode.Any,
+    fee: options.fee ?? 0n,
+    nonce: options.nonce ?? 0n,
+  })
+
+  setTransactionSigner(transaction, senderAddress, config.keyEncoding)
+
+  if (options.fee === undefined) {
+    transaction.setFee(await estimateTransactionFeeWithFallback(transaction, network))
+  }
+
+  if (options.nonce === undefined) {
+    transaction.setNonce(await getNonce(senderAddress, network))
+  }
+
+  return transaction
+}
+
+async function getOwsSenderAddress(config: OwsWalletConfig, options: X402PaymentSignatureOptions) {
+  const result = await options.commandRunner(config.cliPath, ['wallet', 'list'], { env: options.env })
+  return parseOwsWalletAddress(result.stdout, config.wallet, config.chain)
+}
+
+async function signOwsPayment(
+  payment: PaymentRequirementsV2,
+  config: OwsWalletConfig,
+  options: X402PaymentSignatureOptions,
+) {
+  const senderAddress = await getOwsSenderAddress(config, options)
+  const transaction = await createUnsignedOwsStxTransfer(payment, config, senderAddress, options)
+  const unsignedTransaction = serializeTransactionHex(transaction)
+  const result = await options.commandRunner(
+    config.cliPath,
+    [
+      'sign',
+      'tx',
+      '--chain',
+      config.chain,
+      '--wallet',
+      config.wallet,
+      '--tx',
+      unsignedTransaction,
+      '--json',
+    ],
+    { env: options.env },
+  )
+  const signature = parseOwsSignTxSignature(result.stdout)
+
+  return injectStacksSignature(unsignedTransaction, signature)
+}
+
+async function signPrivateKeyPayment(
+  payment: PaymentRequirementsV2,
+  config: StacksConfig,
+  options: X402PaymentSignatureOptions,
+) {
+  const transaction = await makeSTXTokenTransfer({
+    recipient: payment.payTo,
+    amount: BigInt(payment.amount),
+    senderKey: config.privateKey,
+    network: createStacksNetwork(config.network, options.fetcher),
+    memo: createFacilitatorMemo(createFacilitatorNonce()),
+    anchorMode: AnchorMode.Any,
+    ...(options.fee === undefined ? {} : { fee: options.fee }),
+    ...(options.nonce === undefined ? {} : { nonce: options.nonce }),
+  })
+
+  return serializeTransactionHex(transaction)
+}
+
+async function signPayment(
+  payment: PaymentRequirementsV2,
+  walletConfig: WalletConfig,
+  options: X402PaymentSignatureOptions,
+) {
+  if (walletConfig.provider === 'ows') {
+    return signOwsPayment(payment, walletConfig, options)
+  }
+
+  return signPrivateKeyPayment(payment, walletConfig, options)
+}
+
+export async function createX402PaymentSignatureHeader(
+  paymentRequiredValue: unknown,
+  options: X402PaymentSignatureOptions,
+) {
+  const paymentRequired = parsePaymentRequired(paymentRequiredValue)
+  if (!paymentRequired) {
+    return undefined
+  }
+
+  const walletConfig = readPaymentWalletConfig(options.env)
+  if (!walletConfig) {
+    return undefined
+  }
+
+  const payment = selectStacksPaymentOption(paymentRequired, walletConfig)
+  if (!payment) {
+    return undefined
+  }
+
+  if (walletConfig.provider === 'private-key') {
+    const account = privateKeyToAccount(walletConfig.privateKey, walletConfig.network)
+    const expectedNetwork = walletNetworkToCAIP2(walletConfig.network)
+    if (payment.network !== expectedNetwork) {
+      throw new ValidationError(`Payment network ${payment.network} does not match wallet network ${expectedNetwork}.`)
+    }
+
+    if (!account.address.startsWith(walletConfig.network === 'mainnet' ? 'SP' : 'ST')) {
+      throw new ValidationError('Configured private key does not resolve to the selected Stacks network.')
+    }
+  }
+
+  const signedTransaction = await signPayment(payment, walletConfig, options)
+  const payload: PaymentPayloadV2 = {
+    x402Version: 2,
+    accepted: payment,
+    payload: {
+      transaction: signedTransaction,
+    },
+  }
+
+  return encodePaymentPayload(payload)
+}

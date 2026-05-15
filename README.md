@@ -74,7 +74,41 @@ source .env
 set +a
 ```
 
-Set `STACKS_PRIVATE_KEY` to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+By default, AgentSats uses `AGENTSATS_WALLET_PROVIDER=private-key` and reads `STACKS_PRIVATE_KEY`. Set it to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+
+When a paid endpoint returns a valid x402 v2 `payment-required` challenge for STX on the selected Stacks network, AgentSats signs the facilitator-bound transaction and retries the request once with the `payment-signature` header.
+
+To use an Open Wallet Standard vault wallet instead, set:
+
+```bash
+AGENTSATS_WALLET_PROVIDER=ows
+OWS_WALLET=agent-treasury
+OWS_CHAIN=stacks:2147483648
+OWS_CLI=ows
+OWS_STACKS_KEY_ENCODING=uncompressed
+OWS_PASSPHRASE=
+```
+
+`OWS_CHAIN` defaults from `STACKS_NETWORK` when unset. Use `stacks:1` for mainnet or `stacks:2147483648` for testnet. `OWS_STACKS_KEY_ENCODING` defaults to `uncompressed`, which matches OWS mnemonic-derived Stacks wallets. Set it to `compressed` only for an imported compressed Stacks private key wallet.
+
+You can also set up a development OWS Stacks wallet with the explicit preview command:
+
+```bash
+pnpm dev wallet setup \
+  --provider ows \
+  --preview-stacks \
+  --wallet agentsats-mainnet \
+  --network mainnet \
+  --json
+```
+
+The command prints this warning:
+
+```text
+Stacks support in OWS is still under development.
+```
+
+It requires `git` and Rust/Cargo locally, clones the pinned OWS PR #115 preview into `~/.agentsats/ows/pr-115/<commit>/`, builds the `ows` binary, creates the named OWS wallet when missing, and writes only non-secret wallet config to `~/.agentsats/config.json`. After that, `agentsats wallet` and paid API commands can use the saved OWS config without repeating `OWS_*` environment variables.
 
 ```bash
 npx agentsats health --json
@@ -133,7 +167,7 @@ npx agentsats api-call \
   --json
 ```
 
-The Twitter endpoints may return `PAYMENT_REQUIRED` when the API has x402 enforcement enabled. In JSON mode the CLI includes decoded `payment-required` challenge metadata in `error.details.paymentRequired`.
+Paid endpoints may return `PAYMENT_REQUIRED` when the API has x402 enforcement enabled and no compatible wallet is configured, signing fails, or the retried paid request is still rejected. In JSON mode the CLI includes decoded `payment-required` challenge metadata in `error.details.paymentRequired`.
 
 ## Test
 

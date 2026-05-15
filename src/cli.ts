@@ -8,6 +8,7 @@ import { getExitCode } from './core/exit.js'
 import { normalizeError } from './core/errors.js'
 import { renderJsonError } from './output/agent.js'
 import { renderFriendlyError } from './output/human.js'
+import { runCommand } from './services/command-runner.js'
 import type { ResolvedRuntime, RuntimeOptions, Writer } from './types/context.js'
 import { createCommandContext } from './utils/terminal.js'
 
@@ -18,6 +19,8 @@ function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
     stdin: options.stdin ?? process.stdin,
     now: options.now ?? (() => new Date().toISOString()),
     env: options.env ?? process.env,
+    commandRunner: options.commandRunner ?? runCommand,
+    fetcher: options.fetcher ?? fetch,
     exitCode: 0,
   }
 }
