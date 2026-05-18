@@ -44,7 +44,7 @@ type CliResponse<T> = {
   "data": {
     "method": "GET",
     "endpoint": "/health",
-    "url": "http://localhost:8082/health",
+    "url": "https://agentsats.stacksx402.com/health",
     "statusCode": 200,
     "response": { "status": "ok" },
     "timestamp": "2026-04-16T00:00:00.000Z"
@@ -62,8 +62,8 @@ type CliResponse<T> = {
 {
   "success": true,
   "data": {
-    "address": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-    "network": "testnet",
+    "address": "SP1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+    "network": "mainnet",
     "timestamp": "2026-04-16T00:00:00.000Z"
   },
   "meta": {
@@ -138,7 +138,7 @@ type CliResponse<T> = {
       "endpoint": "/api/v1/twitter/profile",
       "paymentRequired": {
         "accepts": [
-          { "scheme": "exact", "network": "stacks:2147483648", "asset": "STX", "amount": "1000" }
+          { "scheme": "exact", "network": "stacks:1", "asset": "STX", "amount": "1000" }
         ]
       }
     }

@@ -89,7 +89,7 @@ function readStacksNetwork(env: NodeJS.ProcessEnv, configuredNetwork?: unknown):
     )
   }
 
-  return (rawNetwork as StacksNetwork | undefined) ?? 'testnet'
+  return (rawNetwork as StacksNetwork | undefined) ?? 'mainnet'
 }
 
 function networkFromOwsChain(chain: string): StacksNetwork {
