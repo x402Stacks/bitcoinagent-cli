@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { afterAll, describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
 import type { RuntimeOptions } from '../src/types/context.js'
@@ -10,7 +11,12 @@ const TEST_PRIVATE_KEY =
   '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
 const OWS_PREVIEW_COMMIT = '94e059363f172ed71fa72d7b0619508ae11ba0d1'
 const OWS_PREVIEW_WARNING = 'Stacks support in OWS is still under development.'
-const ISOLATED_CONFIG_PATH = path.join(tmpdir(), 'agentsats-cli-wallet-empty-config.json')
+const ISOLATED_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'agentsats-cli-wallet-'))
+const ISOLATED_CONFIG_PATH = path.join(ISOLATED_CONFIG_DIR, 'config.json')
+
+afterAll(() => {
+  rmSync(ISOLATED_CONFIG_DIR, { recursive: true, force: true })
+})
 
 function createMemoryWriter() {
   let value = ''
