@@ -1,30 +1,12 @@
 # AgentSats
 
-AgentSats is a TypeScript ESM CLI for Bitcoin-paid agent workflows. It exposes explicit human, plain, and JSON output modes so the same commands work interactively for humans and deterministically for machines.
-
-## Stack
-
-- TypeScript
-- ESM
-- Commander.js
-- Clack
-- `@bomb.sh/tab`
-- Zod
-- tsx
-- Vitest
+AgentSats is a CLI for Bitcoin-paid agent workflows. It exposes explicit human, plain, and JSON output modes so the same commands work interactively for humans and deterministically for machines.
 
 ## Use With npx
 
 ```bash
 npx agentsats --help
 npx agentsats services --json
-```
-
-## Local Development
-
-```bash
-pnpm install
-pnpm dev --help
 ```
 
 ## Run In Human Mode
@@ -63,9 +45,9 @@ JSON mode is automation-safe:
 
 ## Bitcoinagent API Endpoint Commands
 
-Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAGENT_API_URL`, falling back to `http://localhost:8082`. Every endpoint command also accepts `--api-url <url>`.
+Endpoint commands call the Go `bitcoinagent` API. By default they use `BITCOINAGENT_API_URL`, falling back to `https://agentsats.stacksx402.com/`. Every endpoint command also accepts `--api-url <url>`.
 
-For local x402 testing, copy the example env file and load it into your shell before running commands:
+To use environment-based wallet configuration, copy the example env file and load it into your shell before running commands:
 
 ```bash
 cp .env.example .env
@@ -74,7 +56,7 @@ source .env
 set +a
 ```
 
-By default, AgentSats uses `AGENTSATS_WALLET_PROVIDER=private-key` and reads `STACKS_PRIVATE_KEY`. Set it to a funded testnet Stacks private key. Do not commit `.env`; only `.env.example` belongs in git.
+By default, AgentSats uses `AGENTSATS_WALLET_PROVIDER=private-key` and reads `STACKS_PRIVATE_KEY`. Set it to a funded Stacks private key. Keep wallet secrets out of shell history, docs, and version control.
 
 When a paid endpoint returns a valid x402 v2 `payment-required` challenge for STX on the selected Stacks network, AgentSats signs the facilitator-bound transaction and retries the request once with the `payment-signature` header.
 
@@ -83,18 +65,18 @@ To use an Open Wallet Standard vault wallet instead, set:
 ```bash
 AGENTSATS_WALLET_PROVIDER=ows
 OWS_WALLET=agent-treasury
-OWS_CHAIN=stacks:2147483648
+OWS_CHAIN=stacks:1
 OWS_CLI=ows
 OWS_STACKS_KEY_ENCODING=uncompressed
 OWS_PASSPHRASE=
 ```
 
-`OWS_CHAIN` defaults from `STACKS_NETWORK` when unset. Use `stacks:1` for mainnet or `stacks:2147483648` for testnet. `OWS_STACKS_KEY_ENCODING` defaults to `uncompressed`, which matches OWS mnemonic-derived Stacks wallets. Set it to `compressed` only for an imported compressed Stacks private key wallet.
+`STACKS_NETWORK` defaults to `mainnet`. `OWS_CHAIN` defaults from `STACKS_NETWORK` when unset. Use `stacks:1` for mainnet or `stacks:2147483648` for testnet. `OWS_STACKS_KEY_ENCODING` defaults to `uncompressed`, which matches OWS mnemonic-derived Stacks wallets. Set it to `compressed` only for an imported compressed Stacks private key wallet.
 
-You can also set up a development OWS Stacks wallet with the explicit preview command:
+You can also set up an OWS Stacks preview wallet with the explicit setup command:
 
 ```bash
-pnpm dev wallet setup \
+npx agentsats wallet setup \
   --provider ows \
   --preview-stacks \
   --wallet agentsats-mainnet \
@@ -108,7 +90,7 @@ The command prints this warning:
 Stacks support in OWS is still under development.
 ```
 
-It requires `git` and Rust/Cargo locally, clones the pinned OWS PR #115 preview into `~/.agentsats/ows/pr-115/<commit>/`, builds the `ows` binary, creates the named OWS wallet when missing, and writes only non-secret wallet config to `~/.agentsats/config.json`. After that, `agentsats wallet` and paid API commands can use the saved OWS config without repeating `OWS_*` environment variables.
+It requires `git` and Rust/Cargo, clones the pinned OWS PR #115 preview into `~/.agentsats/ows/pr-115/<commit>/`, builds the `ows` binary, creates the named OWS wallet when missing, and writes only non-secret wallet config to `~/.agentsats/config.json`. After that, `agentsats wallet` and paid API commands can use the saved OWS config without repeating `OWS_*` environment variables.
 
 ```bash
 npx agentsats health --json
@@ -169,20 +151,6 @@ npx agentsats api-call \
 
 Paid endpoints may return `PAYMENT_REQUIRED` when the API has x402 enforcement enabled and no compatible wallet is configured, signing fails, or the retried paid request is still rejected. In JSON mode the CLI includes decoded `payment-required` challenge metadata in `error.details.paymentRequired`.
 
-## Test
-
-```bash
-pnpm test
-pnpm typecheck
-```
-
-## Build
-
-```bash
-pnpm build
-node dist/index.js services --json
-```
-
 ## Shell Completions
 
 `@bomb.sh/tab` is wired through the built-in `complete` command added in `src/completions/tab.ts`.
@@ -190,9 +158,8 @@ node dist/index.js services --json
 Generate a completion script:
 
 ```bash
-pnpm build
-node dist/index.js complete zsh > ~/.agentsats-completion.zsh
-node dist/index.js complete bash > ~/.agentsats-completion.bash
+npx agentsats complete zsh > ~/.agentsats-completion.zsh
+npx agentsats complete bash > ~/.agentsats-completion.bash
 ```
 
 Install it in your shell startup file:
@@ -202,37 +169,8 @@ echo 'source ~/.agentsats-completion.zsh' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-You can also call the command directly:
-
-```bash
-npx agentsats complete zsh > ~/.agentsats-completion.zsh
-pnpm --silent completions:generate zsh > ~/.agentsats-completion.zsh
-```
-
 If the package is installed globally or linked into your shell `PATH`, this also works:
 
 ```bash
 agentsats complete zsh > ~/.agentsats-completion.zsh
 ```
-
-## Why This Structure Works Well For AgentSats
-
-- `commands/` stays thin and focused on parsing plus delegation
-- `services/` keeps business behavior independent from terminal rendering
-- `output/` centralizes human and machine-safe rendering rules
-- `utils/mode.ts` makes output mode resolution explicit instead of implicit
-- `core/logger.ts` prevents accidental stdout/stderr noise in JSON mode
-- `types/` gives stable contracts that future commands can follow
-
-This keeps human polish and agent determinism separate instead of letting output behavior spread across the codebase.
-
-## Add A New Command
-
-1. Add the result and input types in `src/types/commands.ts`.
-2. Put business logic in a new or existing file under `src/services/`.
-3. Add a thin command module under `src/commands/` with Zod validation.
-4. Reuse `resolveOutputMode`, `createCommandContext`, and the shared output helpers.
-5. Register the command in `src/cli.ts`.
-6. Add JSON-mode tests before adding the implementation.
-
-Future commands such as `logs`, `cancel`, or `agents` can follow the same pattern without changing the core output contract.

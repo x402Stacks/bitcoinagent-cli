@@ -33,7 +33,7 @@ function getRawFlags(options: Record<string, unknown>) {
 }
 
 function readSetupNetwork(value: string | undefined) {
-  const network = value ?? 'testnet'
+  const network = value ?? 'mainnet'
 
   if (network !== 'mainnet' && network !== 'testnet') {
     throw new ValidationError(`--network must be "mainnet" or "testnet" (got "${network}").`)

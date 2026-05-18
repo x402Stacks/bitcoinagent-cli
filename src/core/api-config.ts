@@ -4,7 +4,7 @@ export interface BitcoinAgentApiConfig {
   baseUrl: string
 }
 
-const DEFAULT_BITCOINAGENT_API_URL = 'http://localhost:8082'
+const DEFAULT_BITCOINAGENT_API_URL = 'https://agentsats.stacksx402.com/'
 
 function normalizeBaseUrl(value: string): string {
   try {

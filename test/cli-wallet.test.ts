@@ -10,6 +10,7 @@ const TEST_PRIVATE_KEY =
   '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
 const OWS_PREVIEW_COMMIT = '94e059363f172ed71fa72d7b0619508ae11ba0d1'
 const OWS_PREVIEW_WARNING = 'Stacks support in OWS is still under development.'
+const ISOLATED_CONFIG_PATH = path.join(tmpdir(), 'agentsats-cli-wallet-empty-config.json')
 
 function createMemoryWriter() {
   let value = ''
@@ -32,13 +33,16 @@ async function execute(
 ) {
   const stdout = createMemoryWriter()
   const stderr = createMemoryWriter()
+  const isolatedEnv = env.AGENTSATS_HOME || env.AGENTSATS_CONFIG_PATH
+    ? env
+    : { AGENTSATS_CONFIG_PATH: ISOLATED_CONFIG_PATH, ...env }
 
   const exitCode = await runCli(argv, {
     ...options,
     stdout,
     stderr,
     now: () => '2026-04-16T00:00:00.000Z',
-    env,
+    env: isolatedEnv,
   })
 
   return {
@@ -67,7 +71,7 @@ describe('wallet command — json mode', () => {
     expect(result.stdout.trim().split('\n')).toHaveLength(1)
   })
 
-  it('defaults network to testnet when STACKS_NETWORK is unset', async () => {
+  it('defaults network to mainnet when STACKS_NETWORK is unset', async () => {
     const result = await execute(['wallet', '--json'], {
       STACKS_PRIVATE_KEY: TEST_PRIVATE_KEY,
     })
@@ -75,8 +79,8 @@ describe('wallet command — json mode', () => {
 
     expect(result.exitCode).toBe(0)
     expect(payload.success).toBe(true)
-    expect(payload.data.network).toBe('testnet')
-    expect(payload.data.address).toMatch(/^ST[0-9A-Z]+$/)
+    expect(payload.data.network).toBe('mainnet')
+    expect(payload.data.address).toMatch(/^SP[0-9A-Z]+$/)
   })
 
   it('preserves private-key behavior when provider is explicit', async () => {
@@ -89,7 +93,38 @@ describe('wallet command — json mode', () => {
     expect(result.exitCode).toBe(0)
     expect(payload.success).toBe(true)
     expect(payload.data.provider).toBe('private-key')
-    expect(payload.data.address).toMatch(/^ST[0-9A-Z]+$/)
+    expect(payload.data.network).toBe('mainnet')
+    expect(payload.data.address).toMatch(/^SP[0-9A-Z]+$/)
+  })
+
+  it('defaults OWS chain to mainnet when network and chain are unset', async () => {
+    const result = await execute(
+      ['wallet', '--json'],
+      {
+        AGENTSATS_WALLET_PROVIDER: 'ows',
+        OWS_WALLET: 'agent-treasury',
+      },
+      {
+        commandRunner: async () => ({
+          stdout: [
+            'ID:      wallet-1',
+            'Name:    agent-treasury',
+            'Secured: yes',
+            '  stacks:1 (stacks) -> SP1234567890ABCDEFGHJKMNPQRSTVWXYZ',
+            'Created: 2026-05-14T00:00:00Z',
+            '',
+          ].join('\n'),
+          stderr: '',
+        }),
+      },
+    )
+    const payload = JSON.parse(result.stdout)
+
+    expect(result.exitCode).toBe(0)
+    expect(payload.success).toBe(true)
+    expect(payload.data.provider).toBe('ows')
+    expect(payload.data.network).toBe('mainnet')
+    expect(payload.data.address).toBe('SP1234567890ABCDEFGHJKMNPQRSTVWXYZ')
   })
 
   it('returns validation error for an invalid wallet provider', async () => {
@@ -279,8 +314,6 @@ describe('wallet setup command — json mode', () => {
           '--preview-stacks',
           '--wallet',
           'agentsats-mainnet',
-          '--network',
-          'mainnet',
           '--json',
         ],
         {

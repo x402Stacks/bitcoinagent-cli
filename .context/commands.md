@@ -33,7 +33,7 @@ These commands call the external Go `bitcoinagent` API. They all support:
 
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--api-url <url>` | No | API base URL. Defaults to `BITCOINAGENT_API_URL`, then `http://localhost:8082` |
+| `--api-url <url>` | No | API base URL. Defaults to `BITCOINAGENT_API_URL`, then `https://agentsats.stacksx402.com/` |
 | `--json` | No | Emit structured JSON only |
 | `--plain` | No | Emit minimal readable text |
 
@@ -43,7 +43,7 @@ JSON success payloads are wrapped in the CLI `CliResponse` shape. The command `d
 {
   "method": "GET",
   "endpoint": "/api/v1/tiktok/user/info",
-  "url": "http://localhost:8082/api/v1/tiktok/user/info?uniqueId=creator_1",
+  "url": "https://agentsats.stacksx402.com/api/v1/tiktok/user/info?uniqueId=creator_1",
   "statusCode": 200,
   "provider": "fake",
   "response": {

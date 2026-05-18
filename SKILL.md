@@ -53,7 +53,7 @@ Error codes are `VALIDATION_ERROR`, `NOT_FOUND`, `PAYMENT_REQUIRED`, and `INTERN
 
 ## API URL
 
-Endpoint commands call `BITCOINAGENT_API_URL` or default to `http://localhost:8082`. Every endpoint command accepts `--api-url <url>`.
+Endpoint commands call `BITCOINAGENT_API_URL` or default to `https://agentsats.stacksx402.com/`. Every endpoint command accepts `--api-url <url>`.
 
 ```sh
 npx agentsats twitter-profile --username MrBeast --api-url http://localhost:8083 --json
@@ -121,7 +121,7 @@ OWS_STACKS_KEY_ENCODING=uncompressed
 OWS_PASSPHRASE=
 ```
 
-`STACKS_NETWORK` accepts `mainnet` or `testnet` and defaults to `testnet`. `OWS_CHAIN` accepts `stacks:1` or `stacks:2147483648` and defaults from `STACKS_NETWORK`. `OWS_CLI` defaults to `ows`. `OWS_STACKS_KEY_ENCODING` accepts `compressed` or `uncompressed` and defaults to `uncompressed`.
+`STACKS_NETWORK` accepts `mainnet` or `testnet` and defaults to `mainnet`. `OWS_CHAIN` accepts `stacks:1` or `stacks:2147483648` and defaults from `STACKS_NETWORK`. `OWS_CLI` defaults to `ows`. `OWS_STACKS_KEY_ENCODING` accepts `compressed` or `uncompressed` and defaults to `uncompressed`.
 
 Optional config/cache overrides:
 

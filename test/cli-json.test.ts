@@ -1,9 +1,13 @@
+import path from 'node:path'
+import { tmpdir } from 'node:os'
+
 import { describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
 
 const TEST_PRIVATE_KEY =
   '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+const ISOLATED_CONFIG_PATH = path.join(tmpdir(), 'agentsats-cli-json-empty-config.json')
 
 function createMemoryWriter() {
   let value = ''
@@ -22,12 +26,15 @@ function createMemoryWriter() {
 async function execute(argv: string[], env: NodeJS.ProcessEnv = {}) {
   const stdout = createMemoryWriter()
   const stderr = createMemoryWriter()
+  const isolatedEnv = env.AGENTSATS_HOME || env.AGENTSATS_CONFIG_PATH
+    ? env
+    : { AGENTSATS_CONFIG_PATH: ISOLATED_CONFIG_PATH, ...env }
 
   const exitCode = await runCli(argv, {
     stdout,
     stderr,
     now: () => '2026-04-16T00:00:00.000Z',
-    env,
+    env: isolatedEnv,
   })
 
   return {
@@ -75,7 +82,7 @@ describe('json mode', () => {
     expect(result.exitCode).toBe(0)
     expect(result.stderr).toBe('')
     expect(payload.success).toBe(true)
-    expect(payload.data.address).toMatch(/^ST[0-9A-Z]+$/)
+    expect(payload.data.address).toMatch(/^SP[0-9A-Z]+$/)
     expect(payload.meta.mode).toBe('json')
   })
 
