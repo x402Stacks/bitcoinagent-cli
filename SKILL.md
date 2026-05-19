@@ -83,7 +83,7 @@ Named convenience commands:
 Expanded API coverage:
 
 - `api-call --method GET|POST --path /api/v1/... [--query key=value ...] [--body-json <json>]`
-- Service-scoped commands: `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`
+- Service-scoped commands: `airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitter`
 - Service commands require `--endpoint <path>` under `/api/v1/<service>` and accept the same `--method`, repeated `--query`, and `--body-json` flags.
 - Do not put query strings in `--endpoint`; use `--query key=value`.
 - Endpoint paths reject network-path references (`//...`), backslashes, invalid percent encoding, and `.` or `..` segments before any request is made.

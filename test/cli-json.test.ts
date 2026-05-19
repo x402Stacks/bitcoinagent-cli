@@ -61,6 +61,15 @@ describe('json mode', () => {
     expect(result.stdout).not.toContain('status [options]')
   })
 
+  it('does not expose hidden service commands in help', async () => {
+    const result = await execute(['--help'])
+
+    expect(result.exitCode).toBe(0)
+    expect(result.stderr).toBe('')
+    expect(result.stdout).not.toContain('twitch')
+    expect(result.stdout).not.toContain('zillow')
+  })
+
   it('treats the explicit help command as a success path', async () => {
     const result = await execute(['help', 'wallet'])
 

@@ -78,7 +78,7 @@ src/
 5. **Logger suppression**: `core/logger.ts` returns no-op methods when mode is `json`. Use the logger, never `console.log`.
 6. **Banner**: ASCII logo banner appears in human mode only. Plain and json modes must never emit it.
 7. **Help safety**: `--json --help` returns a JSON validation error (code `VALIDATION_ERROR`). Help without `--json` exits cleanly with code 0.
-8. **API endpoint commands**: endpoint commands call `BITCOINAGENT_API_URL` or `https://agentsats.stacksx402.com/`, support `--api-url`, and return decoded x402 `payment-required` challenge metadata as `PAYMENT_REQUIRED`. Use service-scoped commands (`airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitch`, `twitter`, `zillow`) or `api-call` for full expanded API coverage, including newer GET/POST endpoints discovered through `service-endpoints`.
+8. **API endpoint commands**: endpoint commands call `BITCOINAGENT_API_URL` or `https://agentsats.stacksx402.com/`, support `--api-url`, and return decoded x402 `payment-required` challenge metadata as `PAYMENT_REQUIRED`. Use service-scoped commands (`airbnb`, `booking`, `google-flights`, `instagram`, `linkedin`, `tiktok`, `twitter`) or `api-call` for full expanded API coverage, including newer GET/POST endpoints discovered through `service-endpoints`.
 
 ## Dependencies
 
