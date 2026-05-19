@@ -30,9 +30,7 @@ const apiServiceNames = [
   'instagram',
   'linkedin',
   'tiktok',
-  'twitch',
   'twitter',
-  'zillow',
 ] as const
 
 type ApiServiceName = typeof apiServiceNames[number]
