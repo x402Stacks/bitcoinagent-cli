@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
-
-const TEST_PRIVATE_KEY =
-  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+import { TEST_PRIVATE_KEY } from './fixtures.js'
 
 function createMemoryWriter() {
   let value = ''

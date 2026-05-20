@@ -12,7 +12,7 @@ describe('npm package metadata', () => {
 
     expect(packageJson.name).toBe('agentsats')
     expect(packageJson.bin).toEqual({
-      agentsats: './dist/index.js',
+      agentsats: 'dist/index.js',
     })
     expect(packageJson.scripts?.clean).toBeDefined()
     expect(packageJson.scripts?.build).toContain('pnpm clean')

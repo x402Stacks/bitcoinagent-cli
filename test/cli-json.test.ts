@@ -5,9 +5,8 @@ import { tmpdir } from 'node:os'
 import { afterAll, describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
+import { TEST_PRIVATE_KEY } from './fixtures.js'
 
-const TEST_PRIVATE_KEY =
-  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
 const ISOLATED_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'agentsats-cli-json-'))
 const ISOLATED_CONFIG_PATH = path.join(ISOLATED_CONFIG_DIR, 'config.json')
 

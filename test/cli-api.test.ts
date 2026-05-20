@@ -5,9 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { runCli } from '../src/cli.js'
 import type { RuntimeOptions } from '../src/types/context.js'
-
-const TEST_PRIVATE_KEY =
-  '753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601'
+import { TEST_PRIVATE_KEY, TEST_TESTNET_ADDRESS } from './fixtures.js'
 
 function createMemoryWriter() {
   let value = ''
@@ -579,7 +577,7 @@ describe('api endpoint commands', () => {
     const fetcher = async (input: string | URL, init?: RequestInit) => {
       const url = new URL(String(input))
 
-      if (url.pathname === '/extended/v1/address/ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM/nonces') {
+      if (url.pathname === `/extended/v1/address/${TEST_TESTNET_ADDRESS}/nonces`) {
         return new Response(JSON.stringify({ possible_next_nonce: 0 }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
@@ -665,7 +663,7 @@ describe('api endpoint commands', () => {
     const fetcher = async (input: string | URL, init?: RequestInit) => {
       const url = new URL(String(input))
 
-      if (url.pathname === '/extended/v1/address/ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM/nonces') {
+      if (url.pathname === `/extended/v1/address/${TEST_TESTNET_ADDRESS}/nonces`) {
         return new Response(JSON.stringify({ possible_next_nonce: 0 }), {
           status: 200,
           headers: { 'content-type': 'application/json' },

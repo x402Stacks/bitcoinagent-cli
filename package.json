@@ -4,7 +4,7 @@
   "description": "AgentSats CLI for Bitcoin-paid agent workflows with human and machine-safe output modes.",
   "type": "module",
   "bin": {
-    "agentsats": "./dist/index.js"
+    "agentsats": "dist/index.js"
   },
   "files": [
     "dist",
