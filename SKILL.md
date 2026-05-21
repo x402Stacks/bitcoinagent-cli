@@ -1,6 +1,6 @@
 ---
 name: agentsats-cli
-description: Use when an agent needs to run, test, configure, document, or extend the AgentSats CLI, including bitcoinagent API endpoint commands, private-key wallets, Open Wallet Standard Stacks preview setup, and paid x402 STX flows.
+description: Use when an agent needs to run, test, configure, document, or extend the AgentSats CLI, including bitcoinagent API endpoint commands, Open Wallet Standard default wallet setup, wallet funding addresses, private-key opt-in wallets, and paid x402 STX flows.
 ---
 
 # AgentSats CLI
@@ -12,6 +12,7 @@ Use this project skill before operating or changing the AgentSats CLI. Prefer th
 ```sh
 npx agentsats --help
 npx agentsats services --json
+npx agentsats wallet setup --provider ows --preview-stacks --wallet agentsats-mainnet --network mainnet --json
 npx agentsats wallet --json
 npx agentsats twitter-profile --username MrBeast --json
 ```
@@ -100,15 +101,19 @@ npx agentsats api-call --path /api/v1/airbnb/stays/search --query placeId=ChIJVT
 
 ## Wallet Configuration
 
-Private-key mode is the default when `STACKS_PRIVATE_KEY` is set:
+For user-facing wallet setup, use OWS as the default and first recommendation. Only lead with private-key setup when the user explicitly says they will use a private key, already provides `STACKS_PRIVATE_KEY`, or asks for private-key env configuration.
+
+Default OWS setup:
 
 ```sh
-AGENTSATS_WALLET_PROVIDER=private-key
-STACKS_PRIVATE_KEY=...
-STACKS_NETWORK=mainnet
+npx agentsats wallet setup --provider ows --preview-stacks --wallet agentsats-mainnet --network mainnet --json
 ```
 
-Do not write private keys to the repo, docs, tests, generated config, or logs.
+After creating or selecting an OWS wallet, always surface the `data.address` value from JSON output and tell the user to send STX to that address before calling paid endpoints. Example wording:
+
+```text
+Your AgentSats Stacks address is <address>. Send STX to this address before using paid x402 endpoints.
+```
 
 OWS mode uses a local Open Wallet Standard vault wallet:
 
@@ -122,6 +127,16 @@ OWS_PASSPHRASE=
 ```
 
 `STACKS_NETWORK` accepts `mainnet` or `testnet` and defaults to `mainnet`. `OWS_CHAIN` accepts `stacks:1` or `stacks:2147483648` and defaults from `STACKS_NETWORK`. `OWS_CLI` defaults to `ows`. `OWS_STACKS_KEY_ENCODING` accepts `compressed` or `uncompressed` and defaults to `uncompressed`.
+
+Private-key mode remains supported when explicitly requested:
+
+```sh
+AGENTSATS_WALLET_PROVIDER=private-key
+STACKS_PRIVATE_KEY=...
+STACKS_NETWORK=mainnet
+```
+
+Do not write private keys to the repo, docs, tests, generated config, or logs.
 
 Optional config/cache overrides:
 
@@ -145,6 +160,8 @@ npx agentsats wallet setup --provider ows --preview-stacks --wallet agentsats-ma
 ```
 
 Preview setup requires `git --version` and `cargo --version`, clones `https://github.com/tony1908/core.git`, checks out commit `94e059363f172ed71fa72d7b0619508ae11ba0d1`, builds `ows`, creates the wallet if missing, and writes only non-secret config.
+
+The setup result includes `data.address`. Always include that address in the user-facing response and tell the user to fund it with STX before paid API calls.
 
 Default cache:
 
