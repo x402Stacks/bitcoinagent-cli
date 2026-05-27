@@ -4,7 +4,9 @@ import path from 'node:path'
 
 import { NotFoundError, ValidationError } from '../core/errors.js'
 import {
+  readAgentsatsConfig,
   writeAgentsatsConfig,
+  type SavedOwsWalletConfig,
   type StacksNetwork,
 } from '../core/stacks-config.js'
 import type { WalletSetupResult } from '../types/commands.js'
@@ -120,18 +122,29 @@ export async function setupOwsPreviewWallet(options: SetupOwsPreviewWalletOption
   await buildPreviewOws(options.commandRunner, options.env, owsDir)
 
   const address = await ensureOwsWallet(options.commandRunner, options.env, owsCli, options.wallet, chain)
-  const configPath = await writeAgentsatsConfig(options.env, {
-    wallet: {
-      provider: 'ows',
-      wallet: options.wallet,
-      chain,
-      cliPath: owsCli,
-      keyEncoding: options.keyEncoding,
-      preview: {
-        source: 'ows-pr-115',
-        commit: OWS_STACKS_PREVIEW_COMMIT,
-      },
+  const existingConfig = readAgentsatsConfig(options.env) ?? {}
+  const walletProfile: SavedOwsWalletConfig = {
+    provider: 'ows',
+    wallet: options.wallet,
+    chain,
+    cliPath: owsCli,
+    keyEncoding: options.keyEncoding,
+    preview: {
+      source: 'ows-pr-115',
+      commit: OWS_STACKS_PREVIEW_COMMIT,
     },
+  }
+  const walletProfiles = {
+    ...(existingConfig.wallets ?? {}),
+    ...(existingConfig.wallet?.provider === 'ows' && existingConfig.wallet.wallet
+      ? { [existingConfig.wallet.wallet]: existingConfig.wallet }
+      : {}),
+    [options.wallet]: walletProfile,
+  }
+  const configPath = await writeAgentsatsConfig(options.env, {
+    ...existingConfig,
+    wallet: walletProfile,
+    wallets: walletProfiles,
   })
 
   return {

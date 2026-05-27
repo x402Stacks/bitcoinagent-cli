@@ -19,6 +19,7 @@ interface RequestEndpointOptions {
   env?: NodeJS.ProcessEnv
   commandRunner?: CommandRunner
   fetcher?: FetchLike
+  walletName?: string
 }
 
 export type ApiQueryPair = {
@@ -212,6 +213,7 @@ async function requestEndpoint(
       env: options.env ?? process.env,
       commandRunner: options.commandRunner,
       fetcher,
+      ...(options.walletName === undefined ? {} : { walletName: options.walletName }),
     })
 
     if (paymentSignature) {

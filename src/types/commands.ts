@@ -1,6 +1,7 @@
 export type WalletCommandOptions = {
   json?: boolean
   plain?: boolean
+  wallet?: string
 }
 
 export type WalletProvider = 'private-key' | 'ows'
@@ -31,6 +32,7 @@ export type ApiCommandOptions = {
   json?: boolean
   plain?: boolean
   apiUrl?: string
+  wallet?: string
 }
 
 export type ApiEndpointResult = {

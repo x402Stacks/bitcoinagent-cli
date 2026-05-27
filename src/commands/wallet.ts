@@ -13,6 +13,7 @@ import { createCommandContext } from '../utils/terminal.js'
 const walletCommandSchema = z.object({
   json: z.boolean().optional(),
   plain: z.boolean().optional(),
+  wallet: z.string().trim().min(1, 'Wallet name is required.').optional(),
 })
 
 const walletSetupCommandSchema = z.object({
@@ -65,9 +66,11 @@ async function handleWallet(
   const context = createCommandContext(getRawFlags(options), runtime)
 
   try {
-    walletCommandSchema.parse(options)
+    const parsed = walletCommandSchema.parse(options)
     const timestamp = context.now()
-    const result = await getWalletInfo(context.env, timestamp, runtime.commandRunner)
+    const result = await getWalletInfo(context.env, timestamp, runtime.commandRunner, {
+      ...(parsed.wallet === undefined ? {} : { walletName: parsed.wallet }),
+    })
 
     if (context.mode === 'json') {
       renderJsonSuccess(context, result, timestamp)
@@ -143,6 +146,7 @@ export function registerWalletCommand(program: Command, runtime: ResolvedRuntime
   const walletCommand = program
     .command('wallet')
     .description('Show or set up the Stacks wallet used by AgentSats')
+    .option('--wallet <name>', 'OWS wallet name to select')
     .option('--json', 'Emit structured JSON only')
     .option('--plain', 'Emit minimal readable text')
     .action(async (options: Record<string, unknown>) => {

@@ -92,6 +92,15 @@ Stacks support in OWS is still under development.
 
 It requires `git` and Rust/Cargo, clones the pinned OWS PR #115 preview into `~/.agentsats/ows/pr-115/<commit>/`, builds the `ows` binary, creates the named OWS wallet when missing, and writes only non-secret wallet config to `~/.agentsats/config.json`. After that, `agentsats wallet` and paid API commands can use the saved OWS config without repeating `OWS_*` environment variables.
 
+You can save multiple OWS wallet profiles by running setup with different wallet names. The most recently set up wallet becomes the default, and a specific saved OWS wallet can be selected per command:
+
+```bash
+npx agentsats wallet setup --provider ows --preview-stacks --wallet agentsats-mainnet --network mainnet --json
+npx agentsats wallet setup --provider ows --preview-stacks --wallet agentsats-testnet --network testnet --json
+npx agentsats wallet --wallet agentsats-testnet --json
+npx agentsats twitter-profile --username MrBeast --wallet agentsats-testnet --json
+```
+
 ```bash
 npx agentsats health --json
 npx agentsats services --json

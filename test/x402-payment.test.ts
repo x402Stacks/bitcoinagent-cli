@@ -1,3 +1,7 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -8,6 +12,8 @@ import {
 import type { CommandRunner } from '../src/types/context.js'
 
 const OWS_ADDRESS = 'SP21DDYJM3A6J086F0ZYGZJ24MRCTSTXED71J8DTS'
+const OWS_TESTNET_ADDRESS = 'STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6'
+const OWS_PREVIEW_COMMIT = '94e059363f172ed71fa72d7b0619508ae11ba0d1'
 const PAYMENT_REQUIRED = {
   x402Version: 2,
   resource: {
@@ -22,6 +28,28 @@ const PAYMENT_REQUIRED = {
       amount: '1000',
       asset: 'STX',
       payTo: 'SP2WJH5SDW4S374V3J154SW0SRE20NV1ZKTBCXMR6',
+      maxTimeoutSeconds: 30,
+      resource: '/api/v1/twitter/profile',
+      description: 'Fetch a Twitter profile by username',
+      mimeType: 'application/json',
+    },
+  ],
+} as const
+
+const TESTNET_PAYMENT_REQUIRED = {
+  x402Version: 2,
+  resource: {
+    url: '/api/v1/twitter/profile',
+    description: 'Fetch a Twitter profile by username',
+    mimeType: 'application/json',
+  },
+  accepts: [
+    {
+      scheme: 'exact',
+      network: 'stacks:2147483648',
+      amount: '1000',
+      asset: 'STX',
+      payTo: OWS_TESTNET_ADDRESS,
       maxTimeoutSeconds: 30,
       resource: '/api/v1/twitter/profile',
       description: 'Fetch a Twitter profile by username',
@@ -103,5 +131,93 @@ describe('x402 payment signing', () => {
     expect(payload.resource).toBeUndefined()
     expect(payload.accepted.network).toBe('stacks:1')
     expect(payload.payload.transaction).toBe(injectStacksSignature(unsignedTransaction, signature))
+  })
+
+  it('selects a named saved OWS wallet profile when creating a payment header', async () => {
+    const agentsatsHome = mkdtempSync(path.join(tmpdir(), 'agentsats-x402-wallets-'))
+    const selectedOwsCli = path.join(agentsatsHome, 'ows', 'testnet', 'ows')
+    const signature = `01${'44'.repeat(64)}`
+    let unsignedTransaction = ''
+    const calls: { command: string; args: readonly string[] }[] = []
+
+    try {
+      mkdirSync(agentsatsHome, { recursive: true })
+      writeFileSync(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: path.join(agentsatsHome, 'ows', 'mainnet', 'ows'),
+          keyEncoding: 'uncompressed',
+          preview: {
+            source: 'ows-pr-115',
+            commit: OWS_PREVIEW_COMMIT,
+          },
+        },
+        wallets: {
+          'agentsats-testnet': {
+            provider: 'ows',
+            wallet: 'agentsats-testnet',
+            chain: 'stacks:2147483648',
+            cliPath: selectedOwsCli,
+            keyEncoding: 'uncompressed',
+            preview: {
+              source: 'ows-pr-115',
+              commit: OWS_PREVIEW_COMMIT,
+            },
+          },
+        },
+      })}\n`, 'utf8')
+
+      const commandRunner: CommandRunner = async (command, args) => {
+        calls.push({ command, args })
+
+        if (args[0] === 'wallet' && args[1] === 'list') {
+          return {
+            stdout: [
+              'ID:      wallet-2',
+              'Name:    agentsats-testnet',
+              'Secured: yes',
+              `  stacks:2147483648 (stacks) -> ${OWS_TESTNET_ADDRESS}`,
+              'Created: 2026-05-14T00:00:00Z',
+              '',
+            ].join('\n'),
+            stderr: '',
+          }
+        }
+
+        if (args[0] === 'sign' && args[1] === 'tx') {
+          const txIndex = args.indexOf('--tx')
+          unsignedTransaction = String(args[txIndex + 1])
+          return {
+            stdout: JSON.stringify({ signature, recovery_id: 1 }),
+            stderr: '',
+          }
+        }
+
+        throw new Error(`unexpected command: ${command} ${args.join(' ')}`)
+      }
+
+      const header = await createX402PaymentSignatureHeader(TESTNET_PAYMENT_REQUIRED, {
+        env: {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        commandRunner,
+        fee: 180n,
+        nonce: 0n,
+        walletName: 'agentsats-testnet',
+      })
+      const payload = JSON.parse(Buffer.from(header ?? '', 'base64').toString('utf8'))
+
+      expect(header).toMatch(/^[A-Za-z0-9+/]+=*$/)
+      expect(calls[0]?.command).toBe(selectedOwsCli)
+      expect(calls[1]?.command).toBe(selectedOwsCli)
+      expect(calls[1]?.args).toContain('stacks:2147483648')
+      expect(calls[1]?.args).toContain('agentsats-testnet')
+      expect(payload.accepted.network).toBe('stacks:2147483648')
+      expect(payload.payload.transaction).toBe(injectStacksSignature(unsignedTransaction, signature))
+    } finally {
+      rmSync(agentsatsHome, { recursive: true, force: true })
+    }
   })
 })
