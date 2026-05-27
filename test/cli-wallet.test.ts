@@ -354,6 +354,131 @@ describe('wallet command — json mode', () => {
       await rm(agentsatsHome, { recursive: true, force: true })
     }
   })
+
+  it('does not inherit the default OWS profile when --wallet selects an unsaved wallet', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-missing-cli-wallet-'))
+    const mainnetOwsCli = path.join(agentsatsHome, 'ows', 'mainnet', 'ows')
+
+    try {
+      await mkdir(agentsatsHome, { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: mainnetOwsCli,
+          keyEncoding: 'uncompressed',
+        },
+        wallets: {
+          'agentsats-mainnet': {
+            provider: 'ows',
+            wallet: 'agentsats-mainnet',
+            chain: 'stacks:1',
+            cliPath: mainnetOwsCli,
+            keyEncoding: 'uncompressed',
+          },
+        },
+      })}\n`)
+
+      const result = await execute(
+        ['wallet', '--wallet', 'agentsats-testnet', '--json'],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+          STACKS_NETWORK: 'testnet',
+        },
+        {
+          commandRunner: async (command, args) => {
+            expect(command).toBe('ows')
+            expect(args).toEqual(['wallet', 'list'])
+
+            return {
+              stdout: [
+                'ID:      wallet-2',
+                'Name:    agentsats-testnet',
+                'Secured: yes',
+                '  stacks:2147483648 (stacks) -> STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
+                'Created: 2026-05-15T00:00:00Z',
+                '',
+              ].join('\n'),
+              stderr: '',
+            }
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(payload.data.provider).toBe('ows')
+      expect(payload.data.network).toBe('testnet')
+      expect(payload.data.address).toBe('STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6')
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
+  })
+
+  it('does not inherit the default OWS profile when OWS_WALLET selects an unsaved wallet', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-missing-env-wallet-'))
+    const mainnetOwsCli = path.join(agentsatsHome, 'ows', 'mainnet', 'ows')
+
+    try {
+      await mkdir(agentsatsHome, { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: mainnetOwsCli,
+          keyEncoding: 'uncompressed',
+        },
+        wallets: {
+          'agentsats-mainnet': {
+            provider: 'ows',
+            wallet: 'agentsats-mainnet',
+            chain: 'stacks:1',
+            cliPath: mainnetOwsCli,
+            keyEncoding: 'uncompressed',
+          },
+        },
+      })}\n`)
+
+      const result = await execute(
+        ['wallet', '--json'],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+          OWS_WALLET: 'agentsats-testnet',
+          STACKS_NETWORK: 'testnet',
+        },
+        {
+          commandRunner: async (command, args) => {
+            expect(command).toBe('ows')
+            expect(args).toEqual(['wallet', 'list'])
+
+            return {
+              stdout: [
+                'ID:      wallet-2',
+                'Name:    agentsats-testnet',
+                'Secured: yes',
+                '  stacks:2147483648 (stacks) -> STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
+                'Created: 2026-05-15T00:00:00Z',
+                '',
+              ].join('\n'),
+              stderr: '',
+            }
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(payload.data.provider).toBe('ows')
+      expect(payload.data.network).toBe('testnet')
+      expect(payload.data.address).toBe('STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6')
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('wallet setup command — json mode', () => {

@@ -141,12 +141,16 @@ export function readWalletConfig(env: NodeJS.ProcessEnv, options: ReadWalletConf
   const config = readAgentsatsConfig(env)
   const selectedWalletName = options.walletName?.trim()
   const envWalletName = env.OWS_WALLET?.trim()
+  const explicitWalletName = selectedWalletName || envWalletName
   const defaultConfiguredWallet = config?.wallet
-  const walletName = selectedWalletName || envWalletName || defaultConfiguredWallet?.wallet?.trim()
-  const configuredWallet = readNamedOwsWalletConfig(config, walletName) ?? defaultConfiguredWallet
+  const walletName = explicitWalletName || defaultConfiguredWallet?.wallet?.trim()
+  const configuredWallet = walletName
+    ? (readNamedOwsWalletConfig(config, walletName) ?? (explicitWalletName ? undefined : defaultConfiguredWallet))
+    : defaultConfiguredWallet
   const rawProvider = selectedWalletName
     ? 'ows'
     : env.AGENTSATS_WALLET_PROVIDER?.trim()
+    || (envWalletName ? 'ows' : undefined)
     || (env.STACKS_PRIVATE_KEY?.trim() ? 'private-key' : undefined)
     || configuredWallet?.provider
     || 'private-key'
