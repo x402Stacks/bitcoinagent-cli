@@ -39,6 +39,7 @@ const apiCommandSchema = z.object({
   json: z.boolean().optional(),
   plain: z.boolean().optional(),
   apiUrl: z.string().trim().url('API URL must be valid.').optional(),
+  wallet: z.string().trim().min(1, 'Wallet name is required.').optional(),
 })
 
 const serviceEndpointSchema = apiCommandSchema.extend({
@@ -193,7 +194,7 @@ function normalizeServiceEndpointPath(service: ApiServiceName, endpoint: string)
   return `${serviceRoot}/${relativePath}`
 }
 
-async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
+async function handleApiCommand<T extends { apiUrl?: string | undefined; wallet?: string | undefined }>(
   options: Record<string, unknown>,
   runtime: ResolvedRuntime,
   parseOptions: (options: Record<string, unknown>) => T,
@@ -205,6 +206,7 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
       env: NodeJS.ProcessEnv
       commandRunner: ResolvedRuntime['commandRunner']
       fetcher: ResolvedRuntime['fetcher']
+      walletName?: string
     },
   ) => Promise<ApiEndpointResult>,
 ): Promise<number> {
@@ -218,6 +220,7 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
       env: context.env,
       commandRunner: runtime.commandRunner,
       fetcher: runtime.fetcher,
+      ...(parsed.wallet === undefined ? {} : { walletName: parsed.wallet }),
     })
 
     if (context.mode === 'json') {
@@ -243,6 +246,7 @@ async function handleApiCommand<T extends { apiUrl?: string | undefined }>(
 function withEndpointOptions(command: Command) {
   return command
     .option('--api-url <url>', 'Bitcoinagent API base URL (defaults to BITCOINAGENT_API_URL or https://agentsats.stacksx402.com/)')
+    .option('--wallet <name>', 'OWS wallet name to use for x402 payments')
     .option('--json', 'Emit structured JSON only')
     .option('--plain', 'Emit minimal readable text')
 }

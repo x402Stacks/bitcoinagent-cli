@@ -1,5 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -735,6 +738,149 @@ describe('api endpoint commands', () => {
     expect(requests[0]?.paymentSignature).toBeNull()
     expect(paidSignatures).toHaveLength(2)
     expect(new Set(paidSignatures).size).toBe(1)
+  })
+
+  it('uses a named saved OWS wallet profile for paid API commands', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-api-wallets-'))
+    const selectedOwsCli = path.join(agentsatsHome, 'ows', 'testnet', 'ows')
+    const paymentRequired = createStacksPaymentRequiredHeader()
+    const paymentRequests: { url: string; paymentSignature: string | null }[] = []
+    const commandCalls: { command: string; args: readonly string[] }[] = []
+    const signature = `01${'55'.repeat(64)}`
+
+    try {
+      await mkdir(agentsatsHome, { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: path.join(agentsatsHome, 'ows', 'mainnet', 'ows'),
+          keyEncoding: 'uncompressed',
+        },
+        wallets: {
+          'agentsats-testnet': {
+            provider: 'ows',
+            wallet: 'agentsats-testnet',
+            chain: 'stacks:2147483648',
+            cliPath: selectedOwsCli,
+            keyEncoding: 'uncompressed',
+          },
+        },
+      })}\n`, 'utf8')
+
+      const fetcher = async (input: string | URL, init?: RequestInit) => {
+        const url = new URL(String(input))
+
+        if (url.pathname === `/extended/v1/address/${TEST_TESTNET_ADDRESS}/nonces`) {
+          return new Response(JSON.stringify({ possible_next_nonce: 0 }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+
+        if (url.pathname === '/v2/fees/transaction') {
+          return new Response(JSON.stringify({
+            estimations: [
+              { fee: 180, fee_rate: 1 },
+              { fee: 220, fee_rate: 1 },
+              { fee: 260, fee_rate: 1 },
+            ],
+          }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+
+        if (url.pathname === '/api/v1/twitter/profile') {
+          const headers = new Headers(init?.headers)
+          const paymentSignature = headers.get('payment-signature')
+          paymentRequests.push({ url: `${url.pathname}${url.search}`, paymentSignature })
+
+          if (!paymentSignature) {
+            return new Response(JSON.stringify({ error: 'payment_required' }), {
+              status: 402,
+              headers: {
+                'content-type': 'application/json',
+                'payment-required': paymentRequired,
+              },
+            })
+          }
+
+          return new Response(JSON.stringify({
+            data: {
+              RestID: '44196397',
+              Username: 'MrBeast',
+              DisplayName: 'MrBeast',
+            },
+            meta: { provider: 'rapidapi' },
+          }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        }
+
+        return new Response(JSON.stringify({ error: 'not_found', path: url.pathname }), {
+          status: 404,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      const commandRunner = async (command: string, args: readonly string[]) => {
+        commandCalls.push({ command, args })
+
+        if (args[0] === 'wallet' && args[1] === 'list') {
+          return {
+            stdout: [
+              'ID:      wallet-2',
+              'Name:    agentsats-testnet',
+              'Secured: yes',
+              `  stacks:2147483648 (stacks) -> ${TEST_TESTNET_ADDRESS}`,
+              'Created: 2026-05-14T00:00:00Z',
+              '',
+            ].join('\n'),
+            stderr: '',
+          }
+        }
+
+        if (args[0] === 'sign' && args[1] === 'tx') {
+          return {
+            stdout: JSON.stringify({ signature, recovery_id: 1 }),
+            stderr: '',
+          }
+        }
+
+        throw new Error(`unexpected command: ${command} ${args.join(' ')}`)
+      }
+
+      const result = await execute(
+        [
+          'twitter-profile',
+          '--username',
+          'MrBeast',
+          '--api-url',
+          'http://bitcoinagent.test',
+          '--wallet',
+          'agentsats-testnet',
+          '--json',
+        ],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        { fetcher, commandRunner },
+      )
+      const payload = JSON.parse(result.stdout)
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(payload.data.response.Username).toBe('MrBeast')
+      expect(paymentRequests).toHaveLength(2)
+      expect(paymentRequests[1]?.paymentSignature).toMatch(/^[A-Za-z0-9+/]+=*$/)
+      expect(commandCalls.map((call) => call.command)).toEqual([selectedOwsCli, selectedOwsCli])
+      expect(commandCalls[1]?.args).toContain('stacks:2147483648')
+      expect(commandCalls[1]?.args).toContain('agentsats-testnet')
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
   })
 
   it('calls any GET endpoint by path with repeated query flags', async () => {

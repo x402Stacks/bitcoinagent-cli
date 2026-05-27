@@ -85,8 +85,9 @@ export async function getWalletInfo(
   env: NodeJS.ProcessEnv,
   timestamp: string,
   commandRunner: CommandRunner,
+  options: { walletName?: string } = {},
 ): Promise<WalletCommandResult> {
-  const config = readWalletConfig(env)
+  const config = readWalletConfig(env, options)
 
   if (config.provider === 'private-key') {
     return getPrivateKeyWalletInfo(config, timestamp)

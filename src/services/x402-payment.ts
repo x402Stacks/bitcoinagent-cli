@@ -48,6 +48,7 @@ export interface X402PaymentSignatureOptions {
   fetcher?: FetchLike
   fee?: bigint
   nonce?: bigint
+  walletName?: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -83,8 +84,10 @@ function selectStacksPaymentOption(
   ))
 }
 
-function readPaymentWalletConfig(env: NodeJS.ProcessEnv): WalletConfig | undefined {
-  return readOptionalWalletConfig(env)
+function readPaymentWalletConfig(options: X402PaymentSignatureOptions): WalletConfig | undefined {
+  return readOptionalWalletConfig(options.env, {
+    ...(options.walletName === undefined ? {} : { walletName: options.walletName }),
+  })
 }
 
 function createStacksNetwork(network: AppStacksNetwork, fetcher?: FetchLike): StacksNetwork {
@@ -282,7 +285,7 @@ export async function createX402PaymentSignatureHeader(
     return undefined
   }
 
-  const walletConfig = readPaymentWalletConfig(options.env)
+  const walletConfig = readPaymentWalletConfig(options)
   if (!walletConfig) {
     return undefined
   }

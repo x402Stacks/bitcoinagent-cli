@@ -273,6 +273,87 @@ describe('wallet command — json mode', () => {
       await rm(agentsatsHome, { recursive: true, force: true })
     }
   })
+
+  it('uses a named saved OWS wallet profile when --wallet is provided', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-config-wallets-'))
+    const mainnetOwsCli = path.join(agentsatsHome, 'ows', 'mainnet', 'ows')
+    const testnetOwsCli = path.join(agentsatsHome, 'ows', 'testnet', 'ows')
+
+    try {
+      await mkdir(agentsatsHome, { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: mainnetOwsCli,
+          keyEncoding: 'uncompressed',
+          preview: {
+            source: 'ows-pr-115',
+            commit: OWS_PREVIEW_COMMIT,
+          },
+        },
+        wallets: {
+          'agentsats-mainnet': {
+            provider: 'ows',
+            wallet: 'agentsats-mainnet',
+            chain: 'stacks:1',
+            cliPath: mainnetOwsCli,
+            keyEncoding: 'uncompressed',
+            preview: {
+              source: 'ows-pr-115',
+              commit: OWS_PREVIEW_COMMIT,
+            },
+          },
+          'agentsats-testnet': {
+            provider: 'ows',
+            wallet: 'agentsats-testnet',
+            chain: 'stacks:2147483648',
+            cliPath: testnetOwsCli,
+            keyEncoding: 'uncompressed',
+            preview: {
+              source: 'ows-pr-115',
+              commit: OWS_PREVIEW_COMMIT,
+            },
+          },
+        },
+      })}\n`)
+
+      const result = await execute(
+        ['wallet', '--wallet', 'agentsats-testnet', '--json'],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        {
+          commandRunner: async (command, args) => {
+            expect(command).toBe(testnetOwsCli)
+            expect(args).toEqual(['wallet', 'list'])
+
+            return {
+              stdout: [
+                'ID:      wallet-2',
+                'Name:    agentsats-testnet',
+                'Secured: yes',
+                '  stacks:2147483648 (stacks) -> STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
+                'Created: 2026-05-15T00:00:00Z',
+                '',
+              ].join('\n'),
+              stderr: '',
+            }
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(payload.data.provider).toBe('ows')
+      expect(payload.data.network).toBe('testnet')
+      expect(payload.data.address).toBe('STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6')
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
+  })
 })
 
 describe('wallet setup command — json mode', () => {
@@ -422,6 +503,107 @@ describe('wallet setup command — json mode', () => {
       expect(calls.find((call) => call.command === 'git' && call.args[0] === 'checkout')?.cwd).toBe(sourceDir)
       expect(calls.find((call) => call.command === 'cargo' && call.args[0] === 'build')?.cwd)
         .toBe(path.join(sourceDir, 'ows'))
+    } finally {
+      await rm(agentsatsHome, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves existing OWS wallet profiles when setup adds a new wallet', async () => {
+    const agentsatsHome = await mkdtemp(path.join(tmpdir(), 'agentsats-ows-multi-preview-'))
+    const sourceDir = path.join(agentsatsHome, 'ows', 'pr-115', OWS_PREVIEW_COMMIT)
+    const existingOwsCli = path.join(agentsatsHome, 'ows', 'existing', 'ows')
+
+    try {
+      await mkdir(path.join(sourceDir, '.git'), { recursive: true })
+      await writeFile(path.join(agentsatsHome, 'config.json'), `${JSON.stringify({
+        wallet: {
+          provider: 'ows',
+          wallet: 'agentsats-mainnet',
+          chain: 'stacks:1',
+          cliPath: existingOwsCli,
+          keyEncoding: 'uncompressed',
+          preview: {
+            source: 'ows-pr-115',
+            commit: OWS_PREVIEW_COMMIT,
+          },
+        },
+        wallets: {
+          'agentsats-mainnet': {
+            provider: 'ows',
+            wallet: 'agentsats-mainnet',
+            chain: 'stacks:1',
+            cliPath: existingOwsCli,
+            keyEncoding: 'uncompressed',
+            preview: {
+              source: 'ows-pr-115',
+              commit: OWS_PREVIEW_COMMIT,
+            },
+          },
+        },
+      })}\n`)
+
+      const result = await execute(
+        [
+          'wallet',
+          'setup',
+          '--provider',
+          'ows',
+          '--preview-stacks',
+          '--wallet',
+          'agentsats-testnet',
+          '--network',
+          'testnet',
+          '--json',
+        ],
+        {
+          AGENTSATS_HOME: agentsatsHome,
+        },
+        {
+          commandRunner: async (command, args) => {
+            if (command === 'git' && args[0] === '--version') {
+              return { stdout: 'git version 2.50.0\n', stderr: '' }
+            }
+
+            if (command === 'cargo' && args[0] === '--version') {
+              return { stdout: 'cargo 1.90.0\n', stderr: '' }
+            }
+
+            if (command === 'git' && args[0] === 'checkout') {
+              return { stdout: '', stderr: '' }
+            }
+
+            if (command === 'cargo' && args[0] === 'build') {
+              return { stdout: '', stderr: '' }
+            }
+
+            if (command.endsWith('/ows') && args[0] === 'wallet' && args[1] === 'list') {
+              return {
+                stdout: [
+                  'ID:      wallet-2',
+                  'Name:    agentsats-testnet',
+                  'Secured: yes',
+                  '  stacks:2147483648 (stacks) -> STB44HYPYAT2BB2QE513NSP81HTMYWBJP02HPGK6',
+                  'Created: 2026-05-15T00:00:00Z',
+                  '',
+                ].join('\n'),
+                stderr: '',
+              }
+            }
+
+            throw new Error(`unexpected command: ${command} ${args.join(' ')}`)
+          },
+        },
+      )
+      const payload = JSON.parse(result.stdout)
+      const config = JSON.parse(await readFile(path.join(agentsatsHome, 'config.json'), 'utf8'))
+
+      expect(result.exitCode).toBe(0)
+      expect(payload.success).toBe(true)
+      expect(config.wallet.wallet).toBe('agentsats-testnet')
+      expect(config.wallet.chain).toBe('stacks:2147483648')
+      expect(config.wallets['agentsats-mainnet'].cliPath).toBe(existingOwsCli)
+      expect(config.wallets['agentsats-testnet'].wallet).toBe('agentsats-testnet')
+      expect(config.wallets['agentsats-testnet'].chain).toBe('stacks:2147483648')
     } finally {
       await rm(agentsatsHome, { recursive: true, force: true })
     }

@@ -177,6 +177,13 @@ Saved config:
 
 After setup, `npx agentsats wallet --json` and paid API commands can use the saved OWS config without repeating the `OWS_*` environment variables.
 
+Multiple saved OWS wallet profiles are supported. Re-running setup with a different `--wallet <name>` adds or updates that profile and makes it the default, while preserving previously saved profiles. Select a saved OWS wallet for inspection or a paid API call with `--wallet <name>`:
+
+```sh
+npx agentsats wallet --wallet agentsats-testnet --json
+npx agentsats twitter-profile --username MrBeast --wallet agentsats-testnet --json
+```
+
 ## x402 Payment Rules
 
 - Paid endpoints return HTTP `402` with a base64 JSON `payment-required` header.

@@ -25,18 +25,25 @@ export interface OwsWalletConfig {
 
 export type WalletConfig = StacksConfig | OwsWalletConfig
 
-export interface AgentsatsConfigFile {
-  wallet?: {
-    provider?: string
-    wallet?: string
-    chain?: string
-    cliPath?: string
-    keyEncoding?: 'compressed' | 'uncompressed'
-    preview?: {
-      source: string
-      commit: string
-    }
+export interface SavedOwsWalletConfig {
+  provider?: string
+  wallet?: string
+  chain?: string
+  cliPath?: string
+  keyEncoding?: 'compressed' | 'uncompressed'
+  preview?: {
+    source: string
+    commit: string
   }
+}
+
+export interface AgentsatsConfigFile {
+  wallet?: SavedOwsWalletConfig
+  wallets?: Record<string, SavedOwsWalletConfig>
+}
+
+export interface ReadWalletConfigOptions {
+  walletName?: string
 }
 
 function resolveAgentsatsHome(env: NodeJS.ProcessEnv) {
@@ -57,7 +64,7 @@ export function resolveAgentsatsConfigPath(env: NodeJS.ProcessEnv) {
   return env.AGENTSATS_CONFIG_PATH?.trim() || path.join(resolveAgentsatsHome(env), 'config.json')
 }
 
-function readAgentsatsConfig(env: NodeJS.ProcessEnv): AgentsatsConfigFile | undefined {
+export function readAgentsatsConfig(env: NodeJS.ProcessEnv): AgentsatsConfigFile | undefined {
   const configPath = resolveAgentsatsConfigPath(env)
   if (!existsSync(configPath)) {
     return undefined
@@ -110,10 +117,36 @@ function defaultOwsChain(network: StacksNetwork) {
   return network === 'mainnet' ? 'stacks:1' : 'stacks:2147483648'
 }
 
-export function readWalletConfig(env: NodeJS.ProcessEnv): WalletConfig {
+function readNamedOwsWalletConfig(
+  config: AgentsatsConfigFile | undefined,
+  walletName: string | undefined,
+) {
+  if (!config || !walletName) {
+    return undefined
+  }
+
+  const namedWallet = config.wallets?.[walletName]
+  if (namedWallet) {
+    return namedWallet
+  }
+
+  if (config.wallet?.wallet?.trim() === walletName) {
+    return config.wallet
+  }
+
+  return undefined
+}
+
+export function readWalletConfig(env: NodeJS.ProcessEnv, options: ReadWalletConfigOptions = {}): WalletConfig {
   const config = readAgentsatsConfig(env)
-  const configuredWallet = config?.wallet
-  const rawProvider = env.AGENTSATS_WALLET_PROVIDER?.trim()
+  const selectedWalletName = options.walletName?.trim()
+  const envWalletName = env.OWS_WALLET?.trim()
+  const defaultConfiguredWallet = config?.wallet
+  const walletName = selectedWalletName || envWalletName || defaultConfiguredWallet?.wallet?.trim()
+  const configuredWallet = readNamedOwsWalletConfig(config, walletName) ?? defaultConfiguredWallet
+  const rawProvider = selectedWalletName
+    ? 'ows'
+    : env.AGENTSATS_WALLET_PROVIDER?.trim()
     || (env.STACKS_PRIVATE_KEY?.trim() ? 'private-key' : undefined)
     || configuredWallet?.provider
     || 'private-key'
@@ -127,7 +160,7 @@ export function readWalletConfig(env: NodeJS.ProcessEnv): WalletConfig {
   const network = readStacksNetwork(env)
 
   if (rawProvider === 'ows') {
-    const wallet = env.OWS_WALLET?.trim() || configuredWallet?.wallet?.trim()
+    const wallet = walletName
     if (!wallet) {
       throw new ValidationError('OWS_WALLET environment variable is required when AGENTSATS_WALLET_PROVIDER=ows.')
     }
@@ -175,18 +208,22 @@ function readOwsStacksKeyEncoding(
   return rawEncoding
 }
 
-export function readOptionalWalletConfig(env: NodeJS.ProcessEnv): WalletConfig | undefined {
+export function readOptionalWalletConfig(
+  env: NodeJS.ProcessEnv,
+  options: ReadWalletConfigOptions = {},
+): WalletConfig | undefined {
   const hasExplicitEnvWallet = Boolean(
     env.AGENTSATS_WALLET_PROVIDER?.trim() ||
     env.STACKS_PRIVATE_KEY?.trim(),
   )
+  const hasSelectedWallet = Boolean(options.walletName?.trim())
   const config = readAgentsatsConfig(env)
 
-  if (!hasExplicitEnvWallet && config?.wallet === undefined) {
+  if (!hasExplicitEnvWallet && !hasSelectedWallet && config?.wallet === undefined) {
     return undefined
   }
 
-  return readWalletConfig(env)
+  return readWalletConfig(env, options)
 }
 
 export function readStacksConfig(env: NodeJS.ProcessEnv): StacksConfig {
