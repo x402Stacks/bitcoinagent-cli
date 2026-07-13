@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import { Command, CommanderError } from 'commander'
 
 import { registerApiCommands } from './commands/api.js'
@@ -11,6 +13,11 @@ import { renderFriendlyError } from './output/human.js'
 import { runCommand } from './services/command-runner.js'
 import type { ResolvedRuntime, RuntimeOptions, Writer } from './types/context.js'
 import { createCommandContext } from './utils/terminal.js'
+
+// Read version from package.json so it never drifts from the published version.
+const { version } = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+) as { version: string }
 
 function resolveRuntime(options: RuntimeOptions = {}): ResolvedRuntime {
   return {
@@ -35,7 +42,7 @@ function createProgram(runtime: ResolvedRuntime) {
   program
     .name('agentsats')
     .description('AgentSats CLI for Bitcoin-paid agent workflows')
-    .version('0.1.0')
+    .version(version)
     .exitOverride()
     .configureOutput({
       writeOut: (chunk) => {
