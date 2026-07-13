@@ -1,6 +1,6 @@
 {
   "name": "agentsats",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AgentSats CLI for Bitcoin-paid agent workflows with human and machine-safe output modes.",
   "type": "module",
   "bin": {
