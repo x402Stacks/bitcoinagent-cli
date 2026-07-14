@@ -48,7 +48,7 @@ src/
 │   └── tab.ts            # @bomb.sh/tab shell completion integration
 ├── core/
 │   ├── api-config.ts     # bitcoinagent API base URL helpers
-│   ├── errors.ts         # CliError hierarchy (ValidationError, NotFoundError, PaymentRequiredError, InternalError)
+│   ├── errors.ts         # CliError hierarchy (ValidationError, NotFoundError, PaymentRequiredError, InternalError, FeeTooHighError)
 │   ├── exit.ts           # exit code mapping by error code
 │   ├── logger.ts         # logger suppressed in JSON mode
 │   └── env.ts            # environment helpers (CI, NO_COLOR)
@@ -58,6 +58,8 @@ src/
 ├── services/
 │   ├── bitcoinagent-api.ts # HTTP client for Go bitcoinagent endpoints
 │   ├── stacks-client.ts  # x402-stacks payment client factory
+│   ├── x402-payment.ts   # x402 STX payment signing; fee cap via AGENTSATS_MAX_FEE_USTX,
+│   │                     # AGENTSATS_FEE_MAX_RETRIES, AGENTSATS_FEE_RETRY_DELAY_MS (fails closed)
 │   └── wallet-service.ts # Stacks wallet derivation
 ├── types/
 │   ├── output.ts         # OutputMode, CliResponse<T>
