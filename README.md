@@ -60,6 +60,16 @@ By default, AgentSats uses `AGENTSATS_WALLET_PROVIDER=private-key` and reads `ST
 
 When a paid endpoint returns a valid x402 v2 `payment-required` challenge for STX on the selected Stacks network, AgentSats signs the facilitator-bound transaction and retries the request once with the `payment-signature` header.
 
+### Fee Cap
+
+Stacks transaction fees are dynamically estimated and can occasionally spike far above normal for a payment of a few µSTX. AgentSats caps the estimated fee and re-estimates on the way up:
+
+- `AGENTSATS_MAX_FEE_USTX` (default `5000`) — maximum acceptable estimated fee, in µSTX.
+- `AGENTSATS_FEE_MAX_RETRIES` (default `3`) — re-estimate attempts after an over-cap result.
+- `AGENTSATS_FEE_RETRY_DELAY_MS` (default `2000`) — delay between re-estimate attempts.
+
+If the estimate is still over the cap after all retries, AgentSats fails closed: the payment is skipped (error code `FEE_TOO_HIGH`) rather than overpaying, and the fee is never clamped down to the cap since an underpriced transaction can strand once the x402 amount is spent.
+
 To use an Open Wallet Standard vault wallet instead, set:
 
 ```bash

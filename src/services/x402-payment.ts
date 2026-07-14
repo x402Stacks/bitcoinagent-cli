@@ -3,12 +3,15 @@ import {
   AnchorMode,
   PubKeyEncoding,
   createAddress,
+  createStacksPrivateKey,
   emptyMessageSignature,
   estimateTransactionFeeWithFallback,
   getNonce,
+  getPublicKey,
   isSingleSig,
   makeSTXTokenTransfer,
   makeUnsignedSTXTokenTransfer,
+  publicKeyToString,
 } from '@stacks/transactions'
 import type { SingleSigSpendingCondition } from '@stacks/transactions'
 import { StacksMainnet, StacksTestnet, type FetchFn, type StacksNetwork } from '@stacks/network'
@@ -22,7 +25,7 @@ import {
   type PaymentRequirementsV2,
 } from 'x402-stacks'
 
-import { InternalError, ValidationError } from '../core/errors.js'
+import { FeeTooHighError, InternalError, ValidationError } from '../core/errors.js'
 import {
   readOptionalWalletConfig,
   type OwsWalletConfig,
@@ -49,6 +52,72 @@ export interface X402PaymentSignatureOptions {
   fee?: bigint
   nonce?: bigint
   walletName?: string
+  sleep?: (ms: number) => Promise<void>
+}
+
+const DEFAULT_MAX_FEE_USTX = 5000n
+const DEFAULT_FEE_MAX_RETRIES = 3
+const DEFAULT_FEE_RETRY_DELAY_MS = 2000
+
+function defaultSleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms))
+}
+
+interface FeeCapConfig {
+  maxFeeUstx: bigint
+  maxRetries: number
+  retryDelayMs: number
+}
+
+function readNonNegativeIntEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  const raw = env[name]?.trim()
+  if (!raw) {
+    return undefined
+  }
+
+  if (!/^\d+$/.test(raw)) {
+    throw new ValidationError(`${name} must be a non-negative integer (got "${raw}").`)
+  }
+
+  return raw
+}
+
+function readFeeCapConfig(env: NodeJS.ProcessEnv): FeeCapConfig {
+  return {
+    maxFeeUstx: BigInt(readNonNegativeIntEnv(env, 'AGENTSATS_MAX_FEE_USTX') ?? DEFAULT_MAX_FEE_USTX),
+    maxRetries: Number(readNonNegativeIntEnv(env, 'AGENTSATS_FEE_MAX_RETRIES') ?? DEFAULT_FEE_MAX_RETRIES),
+    retryDelayMs: Number(readNonNegativeIntEnv(env, 'AGENTSATS_FEE_RETRY_DELAY_MS') ?? DEFAULT_FEE_RETRY_DELAY_MS),
+  }
+}
+
+async function estimateCappedFee(
+  transaction: Awaited<ReturnType<typeof makeUnsignedSTXTokenTransfer>>,
+  network: StacksNetwork,
+  feeCapConfig: FeeCapConfig,
+  sleep: (ms: number) => Promise<void>,
+): Promise<bigint> {
+  const attempts = feeCapConfig.maxRetries + 1
+  let lastEstimate = 0n
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    lastEstimate = BigInt(await estimateTransactionFeeWithFallback(transaction, network))
+    if (lastEstimate <= feeCapConfig.maxFeeUstx) {
+      return lastEstimate
+    }
+
+    if (attempt < attempts - 1) {
+      await sleep(feeCapConfig.retryDelayMs)
+    }
+  }
+
+  throw new FeeTooHighError(
+    `Estimated Stacks transaction fee ${lastEstimate} uSTX exceeds the configured maximum of ${feeCapConfig.maxFeeUstx} uSTX after ${attempts} attempt(s). Payment was not sent.`,
+    {
+      estimatedFeeUstx: lastEstimate.toString(),
+      maxFeeUstx: feeCapConfig.maxFeeUstx.toString(),
+      attempts,
+    },
+  )
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -202,7 +271,8 @@ async function createUnsignedOwsStxTransfer(
   setTransactionSigner(transaction, senderAddress, config.keyEncoding)
 
   if (options.fee === undefined) {
-    transaction.setFee(await estimateTransactionFeeWithFallback(transaction, network))
+    const feeCapConfig = readFeeCapConfig(options.env)
+    transaction.setFee(await estimateCappedFee(transaction, network, feeCapConfig, options.sleep ?? defaultSleep))
   }
 
   if (options.nonce === undefined) {
@@ -245,19 +315,42 @@ async function signOwsPayment(
   return injectStacksSignature(unsignedTransaction, signature)
 }
 
+async function estimatePrivateKeyCappedFee(
+  payment: PaymentRequirementsV2,
+  config: StacksConfig,
+  network: StacksNetwork,
+  options: X402PaymentSignatureOptions,
+) {
+  const publicKey = publicKeyToString(getPublicKey(createStacksPrivateKey(config.privateKey)))
+  const unsignedTransaction = await makeUnsignedSTXTokenTransfer({
+    recipient: payment.payTo,
+    amount: BigInt(payment.amount),
+    publicKey,
+    network,
+    memo: createFacilitatorMemo(createFacilitatorNonce()),
+    anchorMode: AnchorMode.Any,
+    fee: 0n,
+    nonce: 0n,
+  })
+
+  return estimateCappedFee(unsignedTransaction, network, readFeeCapConfig(options.env), options.sleep ?? defaultSleep)
+}
+
 async function signPrivateKeyPayment(
   payment: PaymentRequirementsV2,
   config: StacksConfig,
   options: X402PaymentSignatureOptions,
 ) {
+  const network = createStacksNetwork(config.network, options.fetcher)
+  const fee = options.fee ?? await estimatePrivateKeyCappedFee(payment, config, network, options)
   const transaction = await makeSTXTokenTransfer({
     recipient: payment.payTo,
     amount: BigInt(payment.amount),
     senderKey: config.privateKey,
-    network: createStacksNetwork(config.network, options.fetcher),
+    network,
     memo: createFacilitatorMemo(createFacilitatorNonce()),
     anchorMode: AnchorMode.Any,
-    ...(options.fee === undefined ? {} : { fee: options.fee }),
+    fee,
     ...(options.nonce === undefined ? {} : { nonce: options.nonce }),
   })
 

@@ -1,7 +1,7 @@
 import { CommanderError } from 'commander'
 import { ZodError } from 'zod'
 
-export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'PAYMENT_REQUIRED' | 'INTERNAL_ERROR'
+export type ErrorCode = 'VALIDATION_ERROR' | 'NOT_FOUND' | 'PAYMENT_REQUIRED' | 'INTERNAL_ERROR' | 'FEE_TOO_HIGH'
 
 export class CliError extends Error {
   constructor(
@@ -35,6 +35,12 @@ export class PaymentRequiredError extends CliError {
 export class InternalError extends CliError {
   constructor(message = 'An unexpected error occurred.', details?: unknown) {
     super('INTERNAL_ERROR', message, details)
+  }
+}
+
+export class FeeTooHighError extends CliError {
+  constructor(message: string, details?: unknown) {
+    super('FEE_TOO_HIGH', message, details)
   }
 }
 
