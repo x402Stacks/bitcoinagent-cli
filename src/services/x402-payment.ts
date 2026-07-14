@@ -55,7 +55,7 @@ export interface X402PaymentSignatureOptions {
   sleep?: (ms: number) => Promise<void>
 }
 
-const DEFAULT_MAX_FEE_USTX = 5000
+const DEFAULT_MAX_FEE_USTX = 5000n
 const DEFAULT_FEE_MAX_RETRIES = 3
 const DEFAULT_FEE_RETRY_DELAY_MS = 2000
 
@@ -69,24 +69,24 @@ interface FeeCapConfig {
   retryDelayMs: number
 }
 
-function readNonNegativeIntEnv(env: NodeJS.ProcessEnv, name: string, defaultValue: number): number {
+function readNonNegativeIntEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
   const raw = env[name]?.trim()
   if (!raw) {
-    return defaultValue
+    return undefined
   }
 
   if (!/^\d+$/.test(raw)) {
     throw new ValidationError(`${name} must be a non-negative integer (got "${raw}").`)
   }
 
-  return Number(raw)
+  return raw
 }
 
 function readFeeCapConfig(env: NodeJS.ProcessEnv): FeeCapConfig {
   return {
-    maxFeeUstx: BigInt(readNonNegativeIntEnv(env, 'AGENTSATS_MAX_FEE_USTX', DEFAULT_MAX_FEE_USTX)),
-    maxRetries: readNonNegativeIntEnv(env, 'AGENTSATS_FEE_MAX_RETRIES', DEFAULT_FEE_MAX_RETRIES),
-    retryDelayMs: readNonNegativeIntEnv(env, 'AGENTSATS_FEE_RETRY_DELAY_MS', DEFAULT_FEE_RETRY_DELAY_MS),
+    maxFeeUstx: BigInt(readNonNegativeIntEnv(env, 'AGENTSATS_MAX_FEE_USTX') ?? DEFAULT_MAX_FEE_USTX),
+    maxRetries: Number(readNonNegativeIntEnv(env, 'AGENTSATS_FEE_MAX_RETRIES') ?? DEFAULT_FEE_MAX_RETRIES),
+    retryDelayMs: Number(readNonNegativeIntEnv(env, 'AGENTSATS_FEE_RETRY_DELAY_MS') ?? DEFAULT_FEE_RETRY_DELAY_MS),
   }
 }
 
